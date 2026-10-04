@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job Événementiel & Com</title>
+  <meta name="description" content="Les dernières offres d'emploi en événementiel et communication, réunies au même endroit.">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Job Événementiel <span>&amp;</span> Com</h1>
+    <p class="sous-titre">Les dernières offres d'emploi, réunies au même endroit.</p>
+  </header>
+
+  <main>
+    <div id="bandeau-exemple" class="bandeau" hidden>
+      Données d'exemple : les vraies offres s'afficheront une fois les sources connectées (voir le README).
+    </div>
+
+    <form id="filtres" class="filtres" onsubmit="return false">
+      <input type="search" id="recherche" placeholder="Rechercher un poste, une entreprise…" aria-label="Recherche">
+      <input type="text" id="lieu" placeholder="Ville ou département" aria-label="Lieu">
+      <div class="puces" role="group" aria-label="Catégorie">
+        <button type="button" class="puce actif" data-categorie="">Tout</button>
+        <button type="button" class="puce" data-categorie="Événementiel">Événementiel</button>
+        <button type="button" class="puce" data-categorie="Communication">Communication</button>
+      </div>
+      <select id="contrat" aria-label="Type de contrat">
+        <option value="">Tous les contrats</option>
+      </select>
+    </form>
+
+    <p id="compteur" class="compteur"></p>
+    <ul id="liste" class="liste"></ul>
+  </main>
+
+  <footer>
+    <p id="mise-a-jour"></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
