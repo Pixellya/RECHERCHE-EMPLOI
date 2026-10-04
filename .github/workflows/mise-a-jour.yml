@@ -3,7 +3,7 @@ name: Mise à jour des offres
 
 on:
   schedule:
-    - cron: "17 5,11,17 * * *" # 3 fois par jour (heures UTC)
+    - cron: "17 5,9,13,17 * * *" # 4 fois par jour : 7h17, 11h17, 15h17, 19h17 (heure de Paris en été)
   push:
     branches: [main]
   workflow_dispatch: # bouton « Run workflow » pour lancer à la main

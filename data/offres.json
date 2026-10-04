@@ -1,94 +1,102 @@
 {
-  "miseAJour": "2026-10-04T23:20:00.606Z",
+  "miseAJour": "2026-10-04T23:28:35.534Z",
   "exemple": true,
   "offres": [
     {
       "id": "exemple-1",
       "titre": "Chef de projet événementiel",
-      "entreprise": "Entreprise exemple",
-      "lieu": "Paris (75)",
+      "entreprise": "Employeur exemple",
+      "lieu": "75 - Paris 11e",
       "contrat": "CDI",
-      "date": "2026-10-04T23:20:00.606Z",
+      "public": false,
+      "date": "2026-10-04T23:28:35.534Z",
       "categorie": "Événementiel",
       "source": "Exemple",
-      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Chef%20de%20projet%20%C3%A9v%C3%A9nementiel"
+      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Chef%20de%20projet%20%C3%A9v%C3%A9nementiel&lieux=11R&typeContrat=CDI,CDD&tri=1"
     },
     {
       "id": "exemple-2",
       "titre": "Chargé de communication digitale",
-      "entreprise": "Entreprise exemple",
-      "lieu": "Lyon (69)",
+      "entreprise": "Employeur exemple",
+      "lieu": "92 - Boulogne-Billancourt",
       "contrat": "CDI",
-      "date": "2026-10-04T23:20:00.606Z",
+      "public": false,
+      "date": "2026-10-04T23:28:35.534Z",
       "categorie": "Communication",
       "source": "Exemple",
-      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Charg%C3%A9%20de%20communication%20digitale"
+      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Charg%C3%A9%20de%20communication%20digitale&lieux=11R&typeContrat=CDI,CDD&tri=1"
     },
     {
       "id": "exemple-3",
-      "titre": "Assistant événementiel (alternance)",
-      "entreprise": "Entreprise exemple",
-      "lieu": "Nantes (44)",
-      "contrat": "Alternance",
-      "date": "2026-10-03T23:20:00.606Z",
-      "categorie": "Événementiel",
+      "titre": "Chargé de communication (mairie)",
+      "entreprise": "Employeur exemple",
+      "lieu": "93 - Montreuil",
+      "contrat": "CDD",
+      "public": true,
+      "date": "2026-10-03T23:28:35.534Z",
+      "categorie": "Communication",
       "source": "Exemple",
-      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Assistant%20%C3%A9v%C3%A9nementiel%20(alternance)"
+      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Charg%C3%A9%20de%20communication%20(mairie)&lieux=11R&typeContrat=CDI,CDD&tri=1"
     },
     {
       "id": "exemple-4",
       "titre": "Community manager",
-      "entreprise": "Entreprise exemple",
-      "lieu": "Bordeaux (33)",
+      "entreprise": "Employeur exemple",
+      "lieu": "75 - Paris 2e",
       "contrat": "CDD",
-      "date": "2026-10-03T23:20:00.606Z",
+      "public": false,
+      "date": "2026-10-03T23:28:35.534Z",
       "categorie": "Communication",
       "source": "Exemple",
-      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Community%20manager"
+      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Community%20manager&lieux=11R&typeContrat=CDI,CDD&tri=1"
     },
     {
       "id": "exemple-5",
-      "titre": "Régisseur général salons",
-      "entreprise": "Entreprise exemple",
-      "lieu": "Marseille (13)",
+      "titre": "Régisseur salons et congrès",
+      "entreprise": "Employeur exemple",
+      "lieu": "93 - Villepinte",
       "contrat": "CDD",
-      "date": "2026-10-02T23:20:00.606Z",
+      "public": false,
+      "date": "2026-10-02T23:28:35.534Z",
       "categorie": "Événementiel",
       "source": "Exemple",
-      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=R%C3%A9gisseur%20g%C3%A9n%C3%A9ral%20salons"
+      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=R%C3%A9gisseur%20salons%20et%20congr%C3%A8s&lieux=11R&typeContrat=CDI,CDD&tri=1"
     },
     {
       "id": "exemple-6",
-      "titre": "Attaché de presse",
-      "entreprise": "Entreprise exemple",
-      "lieu": "Paris (75)",
+      "titre": "Chargé d'événements (conseil départemental)",
+      "entreprise": "Employeur exemple",
+      "lieu": "94 - Créteil",
       "contrat": "CDI",
-      "date": "2026-10-01T23:20:00.606Z",
-      "categorie": "Communication",
+      "public": true,
+      "date": "2026-10-01T23:28:35.534Z",
+      "categorie": "Événementiel",
       "source": "Exemple",
-      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Attach%C3%A9%20de%20presse"
+      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Charg%C3%A9%20d'%C3%A9v%C3%A9nements%20(conseil%20d%C3%A9partemental)&lieux=11R&typeContrat=CDI,CDD&tri=1"
     },
     {
       "id": "exemple-7",
-      "titre": "Coordinateur festival",
-      "entreprise": "Entreprise exemple",
-      "lieu": "Montpellier (34)",
-      "contrat": "CDD",
-      "date": "2026-09-30T23:20:00.606Z",
-      "categorie": "Événementiel",
+      "titre": "Attaché de presse",
+      "entreprise": "Employeur exemple",
+      "lieu": "75 - Paris 8e",
+      "contrat": "CDI",
+      "public": false,
+      "date": "2026-09-30T23:28:35.534Z",
+      "categorie": "Communication",
       "source": "Exemple",
-      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Coordinateur%20festival"
+      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Attach%C3%A9%20de%20presse&lieux=11R&typeContrat=CDI,CDD&tri=1"
     },
     {
       "id": "exemple-8",
-      "titre": "Responsable communication interne",
-      "entreprise": "Entreprise exemple",
-      "lieu": "Lille (59)",
-      "contrat": "CDI",
-      "date": "2026-09-28T23:20:00.606Z",
-      "categorie": "Communication",
+      "titre": "Coordinateur événementiel",
+      "entreprise": "Employeur exemple",
+      "lieu": "78 - Versailles",
+      "contrat": "CDD",
+      "public": false,
+      "date": "2026-09-28T23:28:35.534Z",
+      "categorie": "Événementiel",
       "source": "Exemple",
-      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Responsable%20communication%20interne"
+      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=Coordinateur%20%C3%A9v%C3%A9nementiel&lieux=11R&typeContrat=CDI,CDD&tri=1"
     }
   ]
 }

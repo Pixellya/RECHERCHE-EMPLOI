@@ -8,6 +8,8 @@
   --accent-doux: #fde8dc;
   --com: #1d4ed8;
   --com-doux: #dde7fd;
+  --pub: #047857;
+  --pub-doux: #d7f3e7;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -21,6 +23,8 @@
     --accent-doux: #3b2416;
     --com: #93b4fb;
     --com-doux: #1c2742;
+    --pub: #6ee7b7;
+    --pub-doux: #143327;
   }
 }
 
@@ -82,6 +86,7 @@ input, select {
   border-radius: 999px;
   cursor: pointer;
 }
+a.puce { text-decoration: none; }
 .puce.actif { background: var(--texte); color: var(--fond); border-color: var(--texte); }
 
 .compteur { color: var(--discret); font-size: 0.9rem; margin: 12px 0; }
@@ -118,7 +123,27 @@ input, select {
   color: var(--accent);
 }
 .etiquette.com { background: var(--com-doux); color: var(--com); }
+.etiquette.pub { background: var(--pub-doux); color: var(--pub); }
+.etiquettes { display: flex; gap: 4px; flex-wrap: wrap; }
 .voir { color: var(--accent); font-weight: 600; white-space: nowrap; }
+
+.case { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+.case input { width: auto; }
+
+.ailleurs { margin-bottom: 40px; }
+.ailleurs h2 { font-size: 1.1rem; margin: 0 0 2px; }
+.ailleurs .infos { color: var(--discret); font-size: 0.85rem; margin: 0 0 12px; }
+.sites { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--bordure); }
+.site {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bordure);
+}
+.liens { display: flex; gap: 6px; }
 
 .vide { text-align: center; color: var(--discret); padding: 40px 0; }
 

@@ -5,6 +5,8 @@
 //   - France Travail : FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET
 //   - Adzuna         : ADZUNA_APP_ID, ADZUNA_APP_KEY
 //
+// Filtres appliqués : Île-de-France uniquement, CDI et CDD uniquement.
+//
 // Lancement : node scripts/fetch-offres.mjs
 
 import { writeFile, mkdir } from "node:fs/promises";
@@ -22,6 +24,22 @@ const MOTS_CLES = {
   "Événementiel": ["événementiel", "evenementiel", "événement", "evenement", "salon", "séminaire", "festival", "régie", "event"],
   "Communication": ["communication", "community manager", "relations presse", "attaché de presse", "chargé de com", "marketing digital", "réseaux sociaux", "brand content"],
 };
+
+// Départements d'Île-de-France.
+const DEPARTEMENTS_IDF = ["75", "77", "78", "91", "92", "93", "94", "95"];
+const CONTRATS = ["CDI", "CDD"];
+
+function enIleDeFrance(codePostal, libelle) {
+  const code = (codePostal ?? libelle ?? "").trim().slice(0, 2);
+  return DEPARTEMENTS_IDF.includes(code);
+}
+
+// Repère les offres des mairies, départements, régions et administrations.
+function secteurPublic(entreprise, secteur) {
+  return /^84/.test(secteur ?? "") ||
+    /mairie|commune|ville de|département|departement|conseil (départemental|general|général|régional)|région|agglom|métropole|metropole|préfecture|ministère|fonction publique|administration publique/i
+      .test(`${entreprise ?? ""} ${secteur ?? ""}`);
+}
 
 function categorie(titre, codeRome) {
   for (const [cat, codes] of Object.entries(ROME)) {
@@ -66,6 +84,8 @@ async function franceTravail() {
     for (let debut = 0; debut < 900; debut += 150) {
       const params = new URLSearchParams({
         codeROME: codes.join(","),
+        region: "11", // Île-de-France
+        typeContrat: CONTRATS.join(","),
         publieeDepuis: String(JOURS),
         sort: "1",
         range: `${debut}-${debut + 149}`,
@@ -78,12 +98,15 @@ async function franceTravail() {
       if (!res.ok && res.status !== 206) throw new Error(`France Travail (recherche) : HTTP ${res.status}`);
       const { resultats = [] } = await res.json();
       for (const o of resultats) {
+        if (!CONTRATS.includes(o.typeContrat)) continue;
+        if (!enIleDeFrance(o.lieuTravail?.codePostal, o.lieuTravail?.libelle)) continue;
         offres.push({
           id: `ft-${o.id}`,
           titre: o.intitule,
           entreprise: o.entreprise?.nom ?? null,
           lieu: o.lieuTravail?.libelle ?? null,
-          contrat: o.typeContratLibelle ?? o.typeContrat ?? null,
+          contrat: o.typeContrat,
+          public: secteurPublic(o.entreprise?.nom, `${o.codeNAF ?? ""} ${o.secteurActiviteLibelle ?? ""}`.trim()),
           date: o.dateCreation,
           categorie: categorie(o.intitule, o.romeCode),
           source: o.origineOffre?.partenaires?.[0]?.nom ?? "France Travail",
@@ -119,18 +142,24 @@ async function adzuna() {
       results_per_page: "50",
       sort_by: "date",
       max_days_old: String(JOURS),
+      where: "Ile-de-France",
     });
     const res = await fetch(`https://api.adzuna.com/v1/api/jobs/fr/search/1?${params}`);
     if (!res.ok) throw new Error(`Adzuna : HTTP ${res.status}`);
     const { results = [] } = await res.json();
     for (const o of results) {
       const titre = o.title.replace(/<[^>]+>/g, "");
+      const contrat = o.contract_type === "permanent" ? "CDI" : o.contract_type === "contract" ? "CDD" : null;
+      if (!contrat) continue;
+      const zones = (o.location?.area ?? []).map((z) => z.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+      if (!zones.includes("Ile-de-France")) continue;
       offres.push({
         id: `az-${o.id}`,
         titre,
         entreprise: o.company?.display_name ?? null,
         lieu: o.location?.display_name ?? null,
-        contrat: o.contract_type === "permanent" ? "CDI" : o.contract_type === "contract" ? "CDD" : null,
+        contrat,
+        public: secteurPublic(o.company?.display_name),
         date: o.created,
         categorie: categorie(titre),
         source: "Adzuna",

@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Job Événementiel & Com</title>
-  <meta name="description" content="Les dernières offres d'emploi en événementiel et communication, réunies au même endroit.">
+  <meta name="description" content="Les dernières offres d'emploi en événementiel et communication en Île-de-France, en CDI et CDD.">
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
     <h1>Job Événementiel <span>&amp;</span> Com</h1>
-    <p class="sous-titre">Les dernières offres d'emploi, réunies au même endroit.</p>
+    <p class="sous-titre">CDI et CDD en Île-de-France, du plus récent au plus ancien.</p>
   </header>
 
   <main>
@@ -21,19 +21,30 @@
 
     <form id="filtres" class="filtres" onsubmit="return false">
       <input type="search" id="recherche" placeholder="Rechercher un poste, une entreprise…" aria-label="Recherche">
-      <input type="text" id="lieu" placeholder="Ville ou département" aria-label="Lieu">
-      <div class="puces" role="group" aria-label="Catégorie">
-        <button type="button" class="puce actif" data-categorie="">Tout</button>
-        <button type="button" class="puce" data-categorie="Événementiel">Événementiel</button>
-        <button type="button" class="puce" data-categorie="Communication">Communication</button>
+      <input type="text" id="lieu" placeholder="Ville ou département (ex. 92)" aria-label="Lieu">
+      <div class="puces" role="group" aria-label="Catégorie" data-filtre="categorie">
+        <button type="button" class="puce actif" data-valeur="">Tout</button>
+        <button type="button" class="puce" data-valeur="Événementiel">Événementiel</button>
+        <button type="button" class="puce" data-valeur="Communication">Communication</button>
       </div>
-      <select id="contrat" aria-label="Type de contrat">
-        <option value="">Tous les contrats</option>
-      </select>
+      <div class="puces" role="group" aria-label="Contrat" data-filtre="contrat">
+        <button type="button" class="puce actif" data-valeur="">CDI et CDD</button>
+        <button type="button" class="puce" data-valeur="CDI">CDI</button>
+        <button type="button" class="puce" data-valeur="CDD">CDD</button>
+      </div>
+      <label class="case">
+        <input type="checkbox" id="public"> Secteur public uniquement (mairies, départements…)
+      </label>
     </form>
 
     <p id="compteur" class="compteur"></p>
     <ul id="liste" class="liste"></ul>
+
+    <section class="ailleurs">
+      <h2>Chercher aussi sur…</h2>
+      <p class="infos">Ces sites n'autorisent pas la reprise de leurs annonces : chaque lien ouvre directement leur recherche.</p>
+      <ul id="sites" class="sites"></ul>
+    </section>
   </main>
 
   <footer>
