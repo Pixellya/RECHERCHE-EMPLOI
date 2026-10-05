@@ -24,6 +24,94 @@ automatiquement et portent l'étiquette **« Secteur public »**.
 Tant qu'aucune source n'est connectée, le site affiche des **offres d'exemple**
 (fictives) signalées par un bandeau.
 
+## Candidatures spontanées
+
+La page **Candidatures spontanées** (lien en haut du site) prépare des candidatures
+ciblées. Le principe : **l'outil prépare, vous décidez**. Rien ne part sans votre
+feu vert, et c'est toujours vous qui cliquez sur « Envoyer » dans Gmail.
+
+1. **Profil** (une seule fois) : coordonnées, postes visés, secteurs (événementiel,
+   agences de communication, musique, culture, audiovisuel, médias digitaux),
+   départements, ton des mails, signature et **CV « maître »** complet.
+2. **Entreprises** : recherche dans l'annuaire officiel des entreprises par secteur,
+   département et taille, ou à partir de votre propre liste. Vous répondez **Oui**
+   ou **Non** à chaque entreprise avant que quoi que ce soit soit rédigé.
+3. **Préparation** : pour chaque entreprise retenue, Claude cherche sur le web le
+   site, une actualité récente qui servira d'accroche, la bonne personne à contacter
+   et son adresse e-mail. Il rédige ensuite un mail court et adapte votre CV à partir
+   du CV maître, **sans rien inventer**.
+4. **À valider** : une fiche par candidature avec l'entreprise, le contact, la
+   **fiabilité de l'adresse** (vérifiée, probable, générique, supposée), l'angle et
+   ses sources, le mail et le CV. Tout est modifiable. Trois choix : **Valider**,
+   **Refaire la recherche** ou **Rejeter**.
+5. **Brouillon Gmail** : une fois validé, le mail arrive dans vos brouillons Gmail
+   avec le CV en pièce jointe. Le CV joint est soit le CV adapté, soit votre propre
+   CV PDF.
+6. **Suivi** : date d'envoi, réponse, relance. Dix jours après l'envoi sans réponse,
+   l'outil propose une relance, qui arrive elle aussi en brouillon après votre accord.
+
+### Où sont les données ?
+
+Tout (profil, CV, entreprises, candidatures, clés) reste **dans votre navigateur**,
+sur l'appareil utilisé. Rien n'est enregistré dans ce dépôt GitHub. Conséquences :
+
+- utilisez cette page uniquement sur **votre propre appareil** ;
+- pour changer d'appareil ou par sécurité, faites **Réglages → Télécharger une
+  sauvegarde**, puis **Restaurer** sur l'autre appareil (les clés ne sont pas dans
+  la sauvegarde, il faut les ressaisir).
+
+### Clés à renseigner dans Réglages
+
+| Clé | Indispensable ? | À quoi elle sert |
+|---|---|---|
+| Clé API Claude | Oui | Recherche sur l'entreprise, rédaction du mail et du CV |
+| Identifiant client Google | Pour Gmail | Déposer les brouillons dans Gmail (sinon : bouton « Pas de Gmail ? ») |
+| Clé Hunter | Non | Trouver et vérifier les adresses e-mail (25 recherches gratuites par mois) |
+
+**Clé Claude**
+
+1. Créer un compte sur <https://console.anthropic.com>, ajouter un moyen de paiement
+   et quelques euros de crédit.
+2. **Settings → Limits** : fixer une limite de dépense mensuelle (par exemple 20 $).
+3. **API Keys → Create Key**, copier la clé (`sk-ant-…`) dans Réglages.
+
+Coût estimé : environ **0,30 à 0,50 $ par candidature** (recherche web comprise),
+soit 10 à 20 $ pour 30 candidatures par mois. Le modèle utilisé est réglé par la
+constante `MODELE` en haut de `candidatures.js`.
+
+**Identifiant client Google (pour les brouillons Gmail)**
+
+1. Aller sur <https://console.cloud.google.com>, créer un projet (par ex. « Candidatures »).
+2. **API et services → Bibliothèque** : chercher **Gmail API** et l'activer.
+3. **API et services → Écran de consentement OAuth** : type **Externe**, nom de
+   l'application, votre adresse. Dans **Utilisateurs test**, ajouter votre adresse Gmail.
+   Laisser l'application en mode **Test** : pas besoin de la faire valider par Google.
+4. **API et services → Identifiants → Créer des identifiants → ID client OAuth** :
+   type **Application Web**. Dans **Origines JavaScript autorisées**, ajouter
+   `https://pixellya.github.io`.
+5. Copier l'**ID client** (`….apps.googleusercontent.com`) dans Réglages, puis
+   cliquer sur **Connecter Gmail**.
+
+À la connexion, Google affiche « Google n'a pas validé cette application » : c'est
+normal pour une application personnelle en mode Test. Cliquez sur **Continuer**.
+L'autorisation demandée (« gérer les brouillons et envoyer des e-mails ») est la seule
+qui permet de créer des brouillons. L'outil ne s'en sert que pour créer des
+brouillons et n'envoie jamais rien.
+
+**Clé Hunter (facultatif)** : créer un compte sur <https://hunter.io>, puis
+**API → API key**.
+
+### Limites à connaître
+
+- Sans Hunter, une adresse marquée **« Supposée »** est devinée à partir du format
+  habituel de l'entreprise (prenom.nom@…) : vérifiez-la avant d'envoyer.
+- Claude cite ses sources (contact, actualité) : un coup d'œil sur les liens permet
+  de vérifier l'accroche.
+- Le CV adapté est une mise en page simple. Si votre CV a un design travaillé
+  (Canva…), ajoutez-le en PDF dans le Profil et choisissez « Mon CV PDF d'origine »
+  dans la fiche.
+- Les réponses ne sont pas détectées automatiquement : indiquez-les dans le Suivi.
+
 ## Mise en ligne (à faire une seule fois)
 
 ### 1. Obtenir la clé France Travail (gratuit)
@@ -80,3 +168,19 @@ Ensuite, plus rien à faire : il se met à jour tout seul.
 - **Fréquence de mise à jour** : la ligne `cron` dans
   `.github/workflows/mise-a-jour.yml`.
 - **Couleurs** : les variables en haut de `style.css`.
+- **Secteurs et codes d'activité des candidatures spontanées** : la liste `SECTEURS`
+  en haut de `candidatures.js`.
+- **Délai avant relance** : la constante `JOURS_AVANT_RELANCE` (10 jours).
+
+## Pour les développeurs
+
+`vendor/bibliotheques.js` regroupe le SDK Claude (`@anthropic-ai/sdk` 0.131.0) et
+`jspdf` (4.2.1), assemblés avec esbuild pour fonctionner sans étape de build :
+
+```sh
+echo 'export { default as Anthropic } from "@anthropic-ai/sdk"; export { jsPDF } from "jspdf";' > entree.mjs
+npm i @anthropic-ai/sdk jspdf esbuild
+npx esbuild entree.mjs --bundle --format=esm --minify --platform=browser \
+  --external:html2canvas --external:dompurify --external:canvg --legal-comments=eof \
+  --outfile=vendor/bibliotheques.js
+```

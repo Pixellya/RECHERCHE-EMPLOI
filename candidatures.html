@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Candidatures spontanées · Job Événementiel & Com</title>
+  <meta name="description" content="Préparer des candidatures spontanées ciblées : entreprises, bon contact, accroche, mail et CV adapté, en brouillon Gmail.">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <nav class="nav">
+      <a href="index.html">Offres d'emploi</a>
+      <a href="candidatures.html" class="actif" aria-current="page">Candidatures spontanées</a>
+    </nav>
+    <h1>Candidatures <span>spontanées</span></h1>
+    <p class="sous-titre">L'outil prépare, vous décidez. Rien ne part sans votre feu vert.</p>
+  </header>
+
+  <main>
+    <nav class="onglets" id="onglets">
+      <a href="#profil" data-onglet="profil">1. Profil</a>
+      <a href="#entreprises" data-onglet="entreprises">2. Entreprises</a>
+      <a href="#valider" data-onglet="valider">3. À valider <span class="nb" id="nb-valider"></span></a>
+      <a href="#suivi" data-onglet="suivi">4. Suivi <span class="nb" id="nb-suivi"></span></a>
+      <a href="#reglages" data-onglet="reglages">Réglages</a>
+    </nav>
+
+    <div id="alerte" class="bandeau" hidden></div>
+
+    <!-- 1. PROFIL -->
+    <section id="profil" class="onglet" hidden>
+      <p class="infos">À remplir une seule fois. Tout reste enregistré dans ce navigateur, sur cet appareil.</p>
+      <form id="form-profil" class="formulaire" onsubmit="return false">
+        <div class="deux">
+          <label>Prénom<input name="prenom" autocomplete="given-name"></label>
+          <label>Nom<input name="nom" autocomplete="family-name"></label>
+          <label>E-mail<input name="email" type="email" autocomplete="email"></label>
+          <label>Téléphone<input name="telephone" type="tel" autocomplete="tel"></label>
+          <label>Ville<input name="ville" autocomplete="address-level2"></label>
+          <label>Portfolio ou LinkedIn<input name="lien" type="url" placeholder="https://…"></label>
+        </div>
+
+        <label>Postes visés
+          <input name="postes" placeholder="Ex. chargée de communication, chargée de production événementielle">
+        </label>
+
+        <fieldset>
+          <legend>Secteurs ciblés</legend>
+          <div class="puces" id="profil-secteurs"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Départements</legend>
+          <div class="puces" id="profil-departements"></div>
+        </fieldset>
+
+        <div class="deux">
+          <label>Ton des mails
+            <select name="ton">
+              <option>Chaleureux et direct</option>
+              <option>Professionnel et sobre</option>
+              <option>Créatif et énergique</option>
+            </select>
+          </label>
+          <label>Précision sur le ton (facultatif)
+            <input name="tonDetail" placeholder="Ex. pas de formules toutes faites, tutoiement interdit">
+          </label>
+        </div>
+
+        <label>Signature des mails
+          <textarea name="signature" rows="3" placeholder="Prénom Nom&#10;06 00 00 00 00&#10;portfolio.fr"></textarea>
+        </label>
+
+        <label>CV « maître » complet (texte)
+          <textarea name="cvMaitre" rows="14" placeholder="Collez ici tout votre CV : toutes vos expériences, missions, compétences, formations, langues… Plus il est complet, mieux l'outil choisira ce qui compte pour chaque entreprise. Il n'inventera rien."></textarea>
+        </label>
+
+        <div class="cv-pdf">
+          <span>Mon CV en PDF (facultatif, pour le joindre tel quel à la place du CV adapté)</span>
+          <input type="file" id="cv-pdf" accept="application/pdf">
+          <span id="cv-pdf-nom" class="infos"></span>
+        </div>
+      </form>
+    </section>
+
+    <!-- 2. ENTREPRISES -->
+    <section id="entreprises" class="onglet" hidden>
+      <form id="form-recherche" class="formulaire carte-bloc" onsubmit="return false">
+        <h2>Trouver des entreprises</h2>
+        <p class="infos">Source : l'annuaire officiel des entreprises de l'État (entreprises en activité).</p>
+        <fieldset>
+          <legend>Secteurs</legend>
+          <div class="puces" id="recherche-secteurs"></div>
+        </fieldset>
+        <fieldset>
+          <legend>Départements</legend>
+          <div class="puces" id="recherche-departements"></div>
+        </fieldset>
+        <fieldset>
+          <legend>Taille</legend>
+          <div class="puces" id="recherche-tailles"></div>
+        </fieldset>
+        <label>Mot-clé (facultatif)<input id="recherche-mot" placeholder="Ex. festival, agence, label…"></label>
+        <button type="submit" class="bouton principal" id="bouton-chercher">Chercher</button>
+      </form>
+
+      <details class="carte-bloc">
+        <summary>Ajouter ma propre liste d'entreprises</summary>
+        <p class="infos">Un nom d'entreprise par ligne. Chaque nom est cherché dans l'annuaire officiel.</p>
+        <textarea id="ma-liste" rows="5" placeholder="Live Nation&#10;Havas Events&#10;Radio Nova"></textarea>
+        <button type="button" class="bouton" id="bouton-ma-liste">Chercher ces entreprises</button>
+      </details>
+
+      <p id="resultats-compteur" class="compteur"></p>
+      <ul id="resultats" class="liste"></ul>
+      <button type="button" class="bouton" id="bouton-plus" hidden>Voir plus d'entreprises</button>
+
+      <h2 class="titre-section">Entreprises retenues <span class="nb" id="nb-retenues"></span></h2>
+      <p class="infos">Pour chacune, l'outil cherche le bon contact et une accroche, puis rédige le mail et adapte le CV. Comptez une à deux minutes par entreprise.</p>
+      <div class="actions">
+        <button type="button" class="bouton principal" id="bouton-tout-preparer">Préparer toutes les candidatures</button>
+      </div>
+      <ul id="retenues" class="liste"></ul>
+    </section>
+
+    <!-- 3. À VALIDER -->
+    <section id="valider" class="onglet" hidden>
+      <p class="infos">Relisez chaque fiche. Vous pouvez modifier le contact, le mail et le CV. Une fois validée, la candidature arrive dans vos brouillons Gmail : c'est vous qui cliquez sur « Envoyer ».</p>
+      <ul id="fiches" class="liste"></ul>
+    </section>
+
+    <!-- 4. SUIVI -->
+    <section id="suivi" class="onglet" hidden>
+      <p class="infos">Indiquez la date d'envoi une fois le mail parti. Une relance est proposée 10 jours plus tard sans réponse, et elle aussi attend votre accord.</p>
+      <div class="tableau-conteneur">
+        <table class="tableau">
+          <thead>
+            <tr><th>Entreprise</th><th>Contact</th><th>Envoyée le</th><th>Relance</th><th>Réponse</th><th></th></tr>
+          </thead>
+          <tbody id="suivi-lignes"></tbody>
+        </table>
+      </div>
+      <h2 class="titre-section">Rejetées</h2>
+      <ul id="rejetees" class="liste-simple"></ul>
+    </section>
+
+    <!-- RÉGLAGES -->
+    <section id="reglages" class="onglet" hidden>
+      <p class="infos">Les clés restent dans ce navigateur. N'utilisez cette page que sur votre propre appareil. Le guide pas à pas pour obtenir chaque clé est dans le README du projet.</p>
+      <form id="form-reglages" class="formulaire" onsubmit="return false">
+        <label>Clé API Claude (Anthropic), indispensable pour la recherche et la rédaction
+          <input name="anthropic" type="password" autocomplete="off" placeholder="sk-ant-…">
+        </label>
+        <label>Identifiant client Google, pour créer les brouillons Gmail
+          <input name="googleClientId" autocomplete="off" placeholder="….apps.googleusercontent.com">
+        </label>
+        <label>Clé API Hunter (facultatif), pour trouver et vérifier les adresses e-mail
+          <input name="hunter" type="password" autocomplete="off">
+        </label>
+      </form>
+      <div class="actions">
+        <button type="button" class="bouton" id="bouton-gmail">Connecter Gmail</button>
+        <span id="etat-gmail" class="infos"></span>
+      </div>
+
+      <h2 class="titre-section">Sauvegarde</h2>
+      <p class="infos">Vos données ne vivent que dans ce navigateur. Téléchargez une sauvegarde de temps en temps, ou pour passer sur un autre appareil.</p>
+      <div class="actions">
+        <button type="button" class="bouton" id="bouton-exporter">Télécharger une sauvegarde</button>
+        <label class="bouton">Restaurer une sauvegarde<input type="file" id="importer" accept="application/json" hidden></label>
+        <button type="button" class="bouton danger" id="bouton-effacer">Tout effacer</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Données d'entreprises : annuaire-entreprises.data.gouv.fr. Recherche et rédaction : Claude (Anthropic).</p>
+  </footer>
+
+  <script src="https://accounts.google.com/gsi/client" async></script>
+  <script type="module" src="candidatures.js"></script>
+</body>
+</html>
