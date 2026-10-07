@@ -25,8 +25,8 @@ const ROME = {
 };
 
 const MOTS_CLES = {
-  "Événementiel": ["événementiel", "evenementiel", "événement", "evenement", "salon", "séminaire", "festival", "régie", "event"],
-  "Communication": ["communication", "community manager", "relations presse", "attaché de presse", "chargé de com", "marketing digital", "réseaux sociaux", "brand content"],
+  "Événementiel": ["événementiel", "évènementiel", "evenementiel", "événement", "évènement", "evenement", "salon", "séminaire", "festival", "régie", "event", "congrès"],
+  "Communication": ["communication", "community manager", "relations presse", "attaché de presse", "attachée de presse", "chargé de com", "marketing digital", "réseaux sociaux", "brand content"],
 };
 
 // Départements d'Île-de-France.

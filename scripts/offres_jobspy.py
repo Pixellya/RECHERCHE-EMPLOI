@@ -41,8 +41,8 @@ IDF = re.compile(
     re.I,
 )
 EXCLUS = re.compile(r"\b(stage|stagiaire|altern|apprenti|freelance|ind[ée]pendant|int[ée]rim)", re.I)
-EVENEMENTIEL = re.compile(r"[ée]v[ée]nement|event|salon|festival|s[ée]minaire|r[ée]gie", re.I)
-COMMUNICATION = re.compile(r"communication|community|relations presse|attach[ée] de presse|r[ée]seaux sociaux|brand|marketing", re.I)
+EVENEMENTIEL = re.compile(r"[éèe]v[éèe]nement|event|salon|festival|s[ée]minaire|r[ée]gie|congr[eè]s", re.I)
+COMMUNICATION = re.compile(r"communication|community|relations presse|attach[ée]e? de presse|r[ée]seaux sociaux|brand|marketing", re.I)
 
 
 def valeur(x):
