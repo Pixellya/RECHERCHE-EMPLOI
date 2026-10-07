@@ -388,7 +388,23 @@ label > input, label > select, label > textarea { font-weight: 400; }
 .vide .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .ailleurs { display: grid; gap: 10px; padding-top: 12px; }
-.sites { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.groupes-sites { display: grid; gap: 8px; }
+.groupe-sites { border-top: 1px solid var(--trait); }
+.groupe-sites > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--cible);
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--police-titre);
+  font-weight: 750;
+}
+.groupe-sites > summary::-webkit-details-marker { display: none; }
+.groupe-sites > summary::before { content: "▸"; width: 1.2em; transition: transform 0.15s; }
+.groupe-sites[open] > summary::before { transform: rotate(90deg); }
+.groupe-sites > p { margin-bottom: 8px; }
+.sites { list-style: none; padding: 0 0 12px; margin: 0; display: grid; gap: 8px; }
 .site {
   display: flex;
   justify-content: space-between;

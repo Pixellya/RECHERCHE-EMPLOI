@@ -19,9 +19,33 @@ Sur téléphone, on peut l'ajouter à l'écran d'accueil (menu du navigateur →
 
 | Source | Comment |
 |---|---|
-| **France Travail** | Offres affichées directement sur le site. Comprend aussi des offres rediffusées depuis des sites partenaires et des offres du secteur public. |
-| **Adzuna** (facultatif) | Offres affichées directement : ce site regroupe des annonces de nombreux autres sites. |
-| Indeed, LinkedIn, Welcome to the Jungle, HelloWork, Apec, Meteojob, Google, Profilculture, Emploi Territorial, Choisir le service public | Ces sites interdisent qu'on recopie leurs annonces. Le site propose donc, en bas de page, un lien par site qui ouvre directement leur recherche « événementiel » ou « communication ». |
+| **France Travail** | API officielle (clé gratuite). Comprend des offres rediffusées depuis des sites partenaires et des offres du secteur public. |
+| **APEC** | Recherche publique du site, sans clé. Surtout des postes cadres. |
+| **Welcome to the Jungle** | Index de recherche public du site, sans clé. |
+| **Adzuna** (facultatif) | API officielle (clé gratuite). Regroupe des annonces de nombreux sites. |
+| **Jooble** (facultatif) | API officielle (clé gratuite). Regroupe notamment HelloWork et Meteojob. |
+| **Indeed et LinkedIn** | Via [JobSpy](https://github.com/speedyapply/JobSpy), un outil libre qui lit leurs pages de recherche publiques. |
+
+Pour chaque offre, le site ne garde que le titre, l'employeur, le lieu, la date et le
+**lien vers l'annonce d'origine**. Une même annonce vue sur plusieurs sites n'apparaît
+qu'une fois. Chaque source est indépendante : si l'une ne répond plus, les autres
+continuent.
+
+**À savoir sur Indeed et LinkedIn.** Ces deux sites interdisent dans leurs conditions
+d'utilisation la lecture automatique de leurs pages. Le site en fait un usage très
+limité (quelques dizaines d'annonces par jour, sans compte, sans copier le texte des
+annonces), mais LinkedIn bloque souvent ce type d'accès : il est normal que certains
+jours, aucune offre LinkedIn n'apparaisse. Pour arrêter ces deux sources, supprimer
+l'étape « Récupérer Indeed et LinkedIn » dans `.github/workflows/mise-a-jour.yml`.
+LinkedIn ne précise pas le type de contrat : ces offres portent l'étiquette
+« Contrat à vérifier ».
+
+En bas de page, **près de 70 sites** sont accessibles en un clic, classés par
+catégorie : généralistes, agrégateurs, culture et spectacle, agences et lieux
+événementiels, médias et musique, jeunes diplômés, secteur public. Pour les sites de
+recherche, un bouton ouvre directement les résultats « événementiel » ou
+« communication » ; pour les employeurs, un bouton ouvre leur page d'offres. La liste
+se modifie dans `sites.js`.
 
 Les offres des mairies, départements et autres administrations sont repérées
 automatiquement et portent l'étiquette **« Secteur public »**.
@@ -143,6 +167,7 @@ Créer un secret par clé, avec exactement ces noms :
 | `FRANCE_TRAVAIL_CLIENT_SECRET` | clé secrète France Travail |
 | `ADZUNA_APP_ID` | App ID Adzuna (facultatif) |
 | `ADZUNA_APP_KEY` | App Key Adzuna (facultatif) |
+| `JOOBLE_API_KEY` | clé API Jooble (facultatif, à demander sur <https://jooble.org/api/about>) |
 
 Les secrets restent privés : ils ne sont jamais visibles, même si le dépôt est public.
 
@@ -173,7 +198,7 @@ Ensuite, plus rien à faire : il se met à jour tout seul.
 - **Métiers suivis** : les listes `ROME` (codes métiers France Travail) et
   `MOTS_CLES` en haut de `scripts/fetch-offres.mjs`.
 - **Ancienneté des offres** : la constante `JOURS` (14 jours par défaut).
-- **Liens vers les autres sites** : la liste `SITES` en haut de `app.js`.
+- **Liens vers les autres sites** : le fichier `sites.js`.
 - **Fréquence de mise à jour** : la ligne `cron` dans
   `.github/workflows/mise-a-jour.yml`.
 - **Couleurs** : les variables en haut de `style.css`.

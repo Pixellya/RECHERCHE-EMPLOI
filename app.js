@@ -2,21 +2,7 @@
 // avec des filtres (recherche, lieu, catégorie, contrat, secteur public), et retient
 // dans le navigateur les offres déjà ouvertes, les favoris et la dernière visite.
 
-// Sites d'emploi vers lesquels on renvoie avec une recherche toute prête.
-// {q} est remplacé par le mot-clé (« événementiel » ou « communication »).
-const SITES = [
-  { nom: "Indeed", url: "https://fr.indeed.com/jobs?q={q}&l=%C3%8Ele-de-France&sort=date" },
-  { nom: "LinkedIn", url: "https://www.linkedin.com/jobs/search/?keywords={q}&location=%C3%8Ele-de-France&sortBy=DD" },
-  { nom: "Welcome to the Jungle", url: "https://www.welcometothejungle.com/fr/jobs?query={q}&aroundQuery=%C3%8Ele-de-France" },
-  { nom: "HelloWork", url: "https://www.hellowork.com/fr-fr/emploi/recherche.html?k={q}&l=%C3%8Ele-de-France" },
-  { nom: "Apec", url: "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles={q}" },
-  { nom: "Meteojob", url: "https://www.meteojob.com/jobs?what={q}&where=%C3%8Ele-de-France" },
-  { nom: "Google (offres d'emploi)", url: "https://www.google.com/search?q={q}+emploi+%C3%8Ele-de-France&ibp=htl;jobs" },
-  { nom: "France Travail", url: "https://candidat.francetravail.fr/offres/recherche?motsCles={q}&lieux=11R&typeContrat=CDI,CDD&tri=1" },
-  { nom: "Profilculture", url: "https://www.profilculture.com/annonce/recherche.aspx?mots={q}" },
-  { nom: "Emploi Territorial (mairies, départements)", url: "https://www.emploi-territorial.fr/emploi-mobilite/?search-word={q}" },
-  { nom: "Choisir le service public", url: "https://choisirleservicepublic.gouv.fr/nos-offres/filtres/mot-cles/{q}/" },
-];
+// La liste des sites d'emploi (SITES, GROUPES_SITES) est dans sites.js.
 
 const CLE_MEMOIRE = "offres-memoire-v1";
 const PAUSE_ENTRE_VISITES = 30 * 60 * 1000; // au-delà, une nouvelle visite commence
@@ -137,7 +123,7 @@ function carte(o) {
 
   const tags = element("div", "tags");
   tags.append(element("span", "categorie", o.categorie));
-  if (o.contrat) tags.append(element("span", "tag", o.contrat));
+  tags.append(element("span", "tag", o.contrat ?? "Contrat à vérifier"));
   if (o.public) tags.append(element("span", "tag public", "Secteur public"));
 
   const bas = element("div", "bas");
@@ -203,7 +189,7 @@ function etatVide(actifs) {
   const actions = element("div", "actions");
   for (const f of actifs) actions.append(boutonAction(`Retirer ${f.libelle}`, () => { f.retirer(); afficher(); }));
   const indeed = element("a", "bouton", "Chercher sur Indeed ↗");
-  indeed.href = SITES[0].url.replace("{q}", encodeURIComponent($("recherche").value.trim() || "événementiel communication"));
+  indeed.href = SITES.find((x) => x.nom === "Indeed").url.replace("{q}", encodeURIComponent($("recherche").value.trim() || "événementiel communication"));
   indeed.target = "_blank";
   indeed.rel = "noopener";
   actions.append(indeed);
@@ -268,21 +254,45 @@ function ouvrirFiltres(ouvert) {
 
 // ---------- Autres sites ----------
 
+function lienSite(texte, url, etiquette) {
+  const a = element("a", "puce", texte);
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.setAttribute("aria-label", etiquette);
+  return a;
+}
+
 function afficherSites() {
-  for (const site of SITES) {
-    const li = element("li", "site");
-    li.append(element("span", null, site.nom));
-    const liens = element("span", "liens");
-    for (const mot of ["Événementiel", "Communication"]) {
-      const a = element("a", "puce", `${mot} ↗`);
-      a.href = site.url.replace("{q}", encodeURIComponent(mot.toLowerCase()));
-      a.target = "_blank";
-      a.rel = "noopener";
-      a.setAttribute("aria-label", `${site.nom} : offres ${mot.toLowerCase()}`);
-      liens.append(a);
+  const conteneur = $("sites");
+  for (const [i, groupe] of GROUPES_SITES.entries()) {
+    const sites = SITES.filter((s) => s.groupe === groupe.nom);
+    if (!sites.length) continue;
+    const details = element("details", "groupe-sites");
+    details.open = i === 0;
+    const resume = element("summary");
+    resume.append(element("span", "nom-groupe", groupe.nom), element("span", "infos chiffres", ` ${sites.length}`));
+    details.append(resume);
+    if (groupe.aide) details.append(element("p", "infos petit", groupe.aide));
+
+    const liste = element("ul", "sites");
+    for (const site of sites) {
+      const li = element("li", "site");
+      li.append(element("span", null, site.nom));
+      const liens = element("span", "liens");
+      if (site.url.includes("{q}")) {
+        for (const mot of ["Événementiel", "Communication"]) {
+          const q = site.slug ? normaliser(mot).replace(/[^a-z0-9]+/g, "-") : encodeURIComponent(mot.toLowerCase());
+          liens.append(lienSite(`${mot} ↗`, site.url.replace("{q}", q), `${site.nom} : offres ${mot.toLowerCase()}`));
+        }
+      } else {
+        liens.append(lienSite("Offres ↗", site.url, `${site.nom} : offres d'emploi`));
+      }
+      li.append(liens);
+      liste.append(li);
     }
-    li.append(liens);
-    $("sites").append(li);
+    details.append(liste);
+    conteneur.append(details);
   }
 }
 
