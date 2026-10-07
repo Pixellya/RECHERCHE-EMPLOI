@@ -74,11 +74,12 @@ const LIBELLES_EFFECTIF = {
 };
 
 const FIABILITE = {
-  verifiee: { libelle: "Vérifiée", classe: "ok", aide: "Adresse vérifiée par Hunter." },
-  probable: { libelle: "Probable", classe: "moyen", aide: "Adresse nominative trouvée, mais pas vérifiée." },
-  generique: { libelle: "Générique", classe: "info", aide: "Adresse générale de l'entreprise (contact@…) : elle arrive, mais pas forcément à la bonne personne." },
-  supposee: { libelle: "Supposée", classe: "faible", aide: "Adresse devinée à partir du format habituel. À vérifier avant d'envoyer." },
-  aucune: { libelle: "Aucune", classe: "faible", aide: "Aucune adresse trouvée : renseignez-la vous-même." },
+  verifiee: { libelle: "Vérifiée", classe: "ok", aide: "Vérifiée par Hunter : l'adresse existe." },
+  probable: { libelle: "Probable", classe: "moyen", aide: "Adresse nominative trouvée publiée sur le web, mais pas vérifiée." },
+  generique: { libelle: "Générique", classe: "info", aide: "Adresse générale de l'entreprise (contact@…) : le mail arrive, mais pas forcément à la bonne personne." },
+  supposee: { libelle: "Supposée", classe: "faible", aide: "Adresse devinée à partir du format habituel (prénom.nom@…) : vérifiez-la avant d'envoyer." },
+  aucune: { libelle: "À trouver", classe: "faible", aide: "Aucune adresse trouvée : renseignez-la vous-même." },
+  saisie: { libelle: "Saisie par vous", classe: "info", aide: "Adresse renseignée par vous." },
 };
 
 const REPONSES = ["En attente", "Positive", "Négative", "Pas de réponse"];
@@ -133,19 +134,36 @@ function el(balise, attributs = {}, ...enfants) {
     else if (cle in e && typeof valeur !== "string") e[cle] = valeur;
     else e.setAttribute(cle, valeur === true ? "" : valeur);
   }
-  e.append(...enfants.flat().filter((x) => x !== null && x !== undefined && x !== false));
+  e.append(...enfants.flat(2).filter((x) => x !== null && x !== undefined && x !== false && x !== ""));
   return e;
 }
 
-function lien(texte, url) {
-  return el("a", { href: url, target: "_blank", rel: "noopener", texte });
+function lien(texte, url, attributs = {}) {
+  return el("a", { href: url, target: "_blank", rel: "noopener", texte, ...attributs });
 }
 
 function alerte(message) {
   const a = $("alerte");
-  a.textContent = message;
+  a.replaceChildren(...[message].flat());
   a.hidden = !message;
-  if (message) a.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function toast(message, action) {
+  const t = el("div", { class: "toast" }, el("span", { texte: message }));
+  const fermer = () => t.remove();
+  if (action) {
+    t.append(el("button", {
+      type: "button",
+      class: "lien-bouton",
+      texte: action.libelle,
+      onclick: () => {
+        action.faire();
+        fermer();
+      },
+    }));
+  }
+  $("toasts").append(t);
+  setTimeout(fermer, action ? 8000 : 5000);
 }
 
 function dateCourte(iso) {
@@ -159,6 +177,7 @@ function ajouterJours(iso, jours) {
 }
 
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
+const pluriel = (n, mot, motPluriel = mot + "s") => `${n} ${n > 1 ? motPluriel : mot}`;
 
 function sansAccents(texte) {
   return (texte ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -168,39 +187,119 @@ function puces(conteneur, valeurs, choisies, auChangement) {
   conteneur.replaceChildren(...valeurs.map(([valeur, libelle]) =>
     el("button", {
       type: "button",
-      class: "puce" + (choisies.includes(valeur) ? " actif" : ""),
+      class: "puce",
       texte: libelle,
-      onclick: (ev) => {
-        ev.currentTarget.classList.toggle("actif");
-        const actives = [...conteneur.querySelectorAll(".puce.actif")].map((b) => b.dataset.valeur);
-        auChangement(actives);
-      },
+      "aria-pressed": String(choisies.includes(valeur)),
       "data-valeur": valeur,
+      onclick: (ev) => {
+        const b = ev.currentTarget;
+        b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true"));
+        auChangement([...conteneur.querySelectorAll('.puce[aria-pressed="true"]')].map((x) => x.dataset.valeur));
+      },
     })
   ));
 }
 
-// ---------- Onglets ----------
+// ---------- Navigation et état général ----------
+
+const ONGLETS = ["profil", "entreprises", "valider", "suivi", "reglages"];
+
+const candidaturesAvecStatut = (statut) => donnees.candidatures.filter((c) => c.statut === statut);
+
+function manquesProfil() {
+  const p = donnees.profil;
+  const manques = [];
+  if (!p.prenom.trim() || !p.nom.trim()) manques.push("prénom et nom");
+  if (!p.email.trim()) manques.push("e-mail");
+  if (!p.postes.trim()) manques.push("postes visés");
+  if (!p.cvMaitre.trim()) manques.push("CV complet");
+  return manques;
+}
+
+function relanceDue(c) {
+  return c.statut === "validee" && c.dateEnvoi && !c.relance && (c.reponse ?? "En attente") === "En attente" &&
+    ajouterJours(c.dateEnvoi, JOURS_AVANT_RELANCE) <= aujourdhui();
+}
+
+function premierOngletUtile() {
+  if (manquesProfil().length || !donnees.cles.anthropic) return "profil";
+  if (candidaturesAvecStatut("a_valider").length) return "valider";
+  if (donnees.candidatures.some(relanceDue)) return "suivi";
+  return "entreprises";
+}
 
 function onglet() {
-  const nom = location.hash.slice(1) || "profil";
+  let nom = location.hash.slice(1);
+  if (!ONGLETS.includes(nom)) nom = premierOngletUtile();
   document.querySelectorAll(".onglet").forEach((s) => (s.hidden = s.id !== nom));
-  document.querySelectorAll("#onglets a").forEach((a) => a.classList.toggle("actif", a.dataset.onglet === nom));
-  document.querySelector("#onglets a.actif")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  document.querySelectorAll("#etapes a").forEach((a) => {
+    if (a.dataset.onglet === nom) a.setAttribute("aria-current", "step");
+    else a.removeAttribute("aria-current");
+  });
   alerte("");
   if (nom === "entreprises") afficherRetenues();
   if (nom === "valider") afficherFiches();
   if (nom === "suivi") afficherSuivi();
 }
 
-function compteurs() {
-  const n = (statuts) => donnees.candidatures.filter((c) => statuts.includes(c.statut)).length;
-  $("nb-valider").textContent = n(["a_valider"]) || "";
-  $("nb-suivi").textContent = n(["validee"]) || "";
-  $("nb-retenues").textContent = Object.values(donnees.entreprises).filter((e) => e.statut === "retenue").length || "";
+function demarrage() {
+  const etapes = [
+    { fait: !!donnees.cles.anthropic, texte: "Ajouter votre clé Claude", lien: "#reglages", action: "Réglages" },
+    { fait: manquesProfil().length === 0, texte: "Remplir votre profil et coller votre CV", lien: "#profil", action: "Profil" },
+    {
+      fait: Object.values(donnees.entreprises).some((e) => e.statut !== "ecartee") || donnees.candidatures.length > 0,
+      texte: "Retenir une première entreprise",
+      lien: "#entreprises",
+      action: "Entreprises",
+    },
+    { fait: !!donnees.cles.googleClientId, texte: "Connecter Gmail (facultatif)", lien: "#reglages", action: "Réglages" },
+  ];
+  $("demarrage").hidden = etapes.slice(0, 3).every((e) => e.fait);
+  $("liste-demarrage").replaceChildren(...etapes.map((e) =>
+    el("li", { class: e.fait ? "fait" : "" },
+      el("span", { class: "coche", "aria-hidden": "true", texte: e.fait ? "✓" : "" }),
+      el("span", { class: "texte", texte: e.texte }),
+      !e.fait && el("a", { href: e.lien, texte: `${e.action} →` }),
+    )
+  ));
 }
 
-// ---------- 1. Profil ----------
+// Met à jour les compteurs des étapes, la liste de démarrage et le titre de l'onglet.
+function compteurs() {
+  const manques = manquesProfil();
+  const retenues = Object.values(donnees.entreprises).filter((e) => e.statut === "retenue").length;
+  const aValider = candidaturesAvecStatut("a_valider").length;
+  const validees = candidaturesAvecStatut("validee");
+  const relances = validees.filter(relanceDue).length;
+  const enCours = file.length + (preparationEnCours ? 1 : 0);
+
+  const etat = (id, texte, { fait = false, important = false } = {}) => {
+    const span = $(`etat-${id}`);
+    span.textContent = texte;
+    span.classList.toggle("alerte", important);
+    span.parentElement.classList.toggle("fait", fait);
+  };
+  etat("profil", manques.length ? "À compléter" : "Complet", { fait: !manques.length, important: manques.length > 0 });
+  etat("entreprises", enCours ? `${enCours} en préparation` : retenues ? pluriel(retenues, "retenue") : "Chercher");
+  etat("valider", aValider ? `${aValider} à relire` : "Rien en attente", { important: aValider > 0 });
+  etat("suivi", relances ? pluriel(relances, "relance") : validees.length ? `${validees.length} en cours` : "Rien encore", { important: relances > 0 });
+
+  document.title = (aValider ? `(${aValider}) ` : "") + "Candidatures spontanées · Job Événementiel & Com";
+  demarrage();
+}
+
+// ---------- Profil ----------
+
+function jaugeProfil() {
+  const p = donnees.profil;
+  const points = [p.prenom && p.nom, p.email, p.postes, p.cvMaitre.trim(), p.signature.trim()];
+  const score = Math.round((points.filter(Boolean).length / points.length) * 100);
+  const manques = manquesProfil();
+  $("jauge-profil").replaceChildren(
+    el("span", { class: "barre", "aria-hidden": "true" }, el("span", { style: `width:${score}%` })),
+    el("span", { texte: manques.length ? `Il manque : ${manques.join(", ")}` : score < 100 ? "Profil prêt (la signature est conseillée)" : "Profil complet" }),
+  );
+}
 
 function initProfil() {
   const form = $("form-profil");
@@ -211,6 +310,7 @@ function initProfil() {
     if (!ev.target.name) return;
     donnees.profil[ev.target.name] = ev.target.value;
     sauver();
+    jaugeProfil();
   });
 
   puces($("profil-secteurs"), Object.keys(SECTEURS).map((s) => [s, s]), donnees.profil.secteurs, (v) => {
@@ -228,14 +328,18 @@ function initProfil() {
   $("cv-pdf").addEventListener("change", async (ev) => {
     const fichier = ev.target.files[0];
     if (!fichier) return;
-    if (fichier.size > 2_000_000) return alerte("Ce PDF dépasse 2 Mo : le navigateur ne pourra pas le garder. Essayez une version compressée.");
+    if (fichier.size > 2_000_000) {
+      $("cv-pdf-nom").textContent = "Ce PDF dépasse 2 Mo : le navigateur ne peut pas le garder. Exportez une version plus légère.";
+      return;
+    }
     donnees.profil.cvPdf = { nom: fichier.name, base64: enBase64(new Uint8Array(await fichier.arrayBuffer())) };
     sauver();
     $("cv-pdf-nom").textContent = `Enregistré : ${fichier.name}`;
   });
+  jaugeProfil();
 }
 
-// ---------- 2. Entreprises ----------
+// ---------- Entreprises ----------
 
 const recherche = { secteurs: [], departements: [], tailles: ["10 à 49", "50 à 249"], page: 1, resultats: [] };
 
@@ -254,10 +358,10 @@ async function appelAnnuaire(params) {
       await new Promise((r) => setTimeout(r, 1200));
       continue;
     }
-    if (!res.ok) throw new Error(`L'annuaire des entreprises a répondu ${res.status}.`);
+    if (!res.ok) throw new Error(`L'annuaire des entreprises ne répond pas (erreur ${res.status}). Réessayez dans un moment.`);
     return res.json();
   }
-  throw new Error("L'annuaire des entreprises est saturé, réessayez dans une minute.");
+  throw new Error("L'annuaire des entreprises est saturé. Réessayez dans une minute.");
 }
 
 function versEntreprise(r, source) {
@@ -308,6 +412,7 @@ async function chercher(nouvelle) {
     recherche.total = reponse.total_results;
     recherche.pages = reponse.total_pages;
     afficherResultats();
+    if (nouvelle) $("resultats-compteur").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) {
     alerte(e.message);
   } finally {
@@ -325,7 +430,7 @@ async function chercherMaListe() {
   recherche.pages = 0;
   const introuvables = [];
   for (const [i, nom] of noms.entries()) {
-    bouton.textContent = `Recherche ${i + 1}/${noms.length}…`;
+    bouton.textContent = `Recherche ${i + 1} sur ${noms.length}…`;
     try {
       const reponse = await appelAnnuaire({ q: nom, etat_administratif: "A", per_page: "1" });
       if (reponse.results[0]) recherche.resultats.push(versEntreprise(reponse.results[0], "Ma liste"));
@@ -338,59 +443,166 @@ async function chercherMaListe() {
   bouton.textContent = "Chercher ces entreprises";
   recherche.total = recherche.resultats.length;
   afficherResultats();
-  if (introuvables.length) alerte(`Introuvables dans l'annuaire : ${introuvables.join(", ")}.`);
+  if (introuvables.length) alerte(`Introuvables dans l'annuaire : ${introuvables.join(", ")}. Vérifiez l'orthographe ou essayez le nom officiel.`);
 }
 
-function carteEntreprise(e, boutons) {
+function carteEntreprise(e, ...contenu) {
   const dirigeants = e.dirigeants.map((d) => `${d.prenom} ${d.nom}`.trim() + (d.qualite ? ` (${d.qualite})` : "")).join(", ");
-  return el("li", { class: "offre entreprise" },
+  return el("li", { class: "carte" },
     el("div", { class: "entete" },
       el("h3", { texte: e.nom }),
-      lien("Fiche officielle", `https://annuaire-entreprises.data.gouv.fr/entreprise/${e.siren}`),
+      lien("Fiche officielle ↗", `https://annuaire-entreprises.data.gouv.fr/entreprise/${e.siren}`),
     ),
-    el("div", { class: "infos", texte: [e.activite, e.ville, e.effectif].filter(Boolean).join(" · ") }),
-    dirigeants && el("div", { class: "infos", texte: `Dirigeants : ${dirigeants}` }),
-    el("div", { class: "actions" }, boutons),
+    el("p", { class: "infos", texte: [e.activite, e.ville, e.effectif].filter(Boolean).join(" · ") }),
+    dirigeants && el("p", { class: "infos petit", texte: `Dirigeants : ${dirigeants}` }),
+    contenu,
   );
 }
 
 function decider(entreprise, statut) {
-  const existante = donnees.entreprises[entreprise.siren];
-  donnees.entreprises[entreprise.siren] = { ...entreprise, ...existante, statut };
+  const avant = donnees.entreprises[entreprise.siren];
+  donnees.entreprises[entreprise.siren] = { ...entreprise, ...avant, statut };
   sauver();
   afficherResultats();
   afficherRetenues();
+  const annuler = {
+    libelle: "Annuler",
+    faire: () => {
+      if (avant) donnees.entreprises[entreprise.siren] = avant;
+      else delete donnees.entreprises[entreprise.siren];
+      sauver();
+      afficherResultats();
+      afficherRetenues();
+    },
+  };
+  toast(statut === "retenue" ? `${entreprise.nom} retenue` : `${entreprise.nom} passée`, annuler);
 }
 
 function afficherResultats() {
   const aTrier = recherche.resultats.filter((e) => !donnees.entreprises[e.siren]);
   const dejaVues = recherche.resultats.length - aTrier.length;
   $("resultats-compteur").textContent = recherche.total === undefined ? "" :
-    `${recherche.total} entreprise${recherche.total > 1 ? "s" : ""} trouvée${recherche.total > 1 ? "s" : ""}` +
-    (dejaVues ? ` · ${dejaVues} déjà triée${dejaVues > 1 ? "s" : ""} masquée${dejaVues > 1 ? "s" : ""}` : "");
-  $("resultats").replaceChildren(...aTrier.map((e) => carteEntreprise(e, [
-    el("button", { type: "button", class: "bouton principal", texte: "Oui", onclick: () => decider(e, "retenue") }),
-    el("button", { type: "button", class: "bouton", texte: "Non", onclick: () => decider(e, "ecartee") }),
-  ])));
+    `${pluriel(recherche.total, "entreprise trouvée", "entreprises trouvées")}` +
+    (dejaVues ? ` · ${pluriel(dejaVues, "déjà triée masquée", "déjà triées masquées")}` : "");
+  $("resultats").replaceChildren(...aTrier.map((e) => carteEntreprise(e,
+    el("div", { class: "actions" },
+      el("button", { type: "button", class: "bouton principal", texte: "Retenir", onclick: () => decider(e, "retenue") }),
+      el("button", { type: "button", class: "bouton", texte: "Passer", onclick: () => decider(e, "ecartee") }),
+    ),
+  )));
+  if (recherche.total !== undefined && !aTrier.length) {
+    $("resultats").append(el("li", { class: "vide" },
+      el("p", { texte: recherche.resultats.length ? "Toutes ces entreprises sont déjà triées." : "Aucune entreprise ne correspond. Élargissez les secteurs, les départements ou la taille." }),
+    ));
+  }
   $("bouton-plus").hidden = !(recherche.pages > recherche.page);
 }
 
-const enPreparation = new Map(); // siren → message d'avancement
+// ---------- File de préparation ----------
+
+const ETAPES_PREPARATION = [
+  "Recherche de l'entreprise, du contact et de l'actualité",
+  "Rédaction du mail et du CV",
+  "Recherche de l'adresse e-mail",
+];
+const file = []; // sirens en attente
+let preparationEnCours = null; // { siren, etape }
+
+function listeEtapes(etapeCourante) {
+  return el("ol", { class: "etapes-prep" },
+    ETAPES_PREPARATION.map((texte, i) =>
+      el("li", { class: i < etapeCourante ? "fait" : i === etapeCourante ? "encours" : "", texte })),
+  );
+}
+
+function prerequisPreparation() {
+  if (!donnees.cles.anthropic) {
+    alerte(["Ajoutez d'abord votre clé Claude. ", el("a", { href: "#reglages", texte: "Aller aux réglages →" })]);
+    return false;
+  }
+  if (!donnees.profil.cvMaitre.trim()) {
+    alerte(["Collez d'abord votre CV complet dans le profil. ", el("a", { href: "#profil", texte: "Aller au profil →" })]);
+    return false;
+  }
+  return true;
+}
+
+function ajouterALaFile(sirens) {
+  if (!prerequisPreparation()) return;
+  for (const siren of sirens) {
+    if (!file.includes(siren) && preparationEnCours?.siren !== siren) {
+      delete donnees.entreprises[siren].erreur;
+      file.push(siren);
+    }
+  }
+  afficherRetenues();
+  compteurs();
+  traiterFile();
+}
+
+async function traiterFile() {
+  if (preparationEnCours) return;
+  while (file.length) {
+    const siren = file.shift();
+    const e = donnees.entreprises[siren];
+    preparationEnCours = { siren, etape: 0 };
+    afficherRetenues();
+    try {
+      await preparer(siren, {
+        surEtape: (etape) => {
+          preparationEnCours.etape = etape;
+          afficherRetenues();
+        },
+      });
+      e.statut = "preparee";
+      sauver();
+      toast(`Candidature prête : ${e.nom}`, { libelle: "Relire", faire: () => (location.hash = "#valider") });
+    } catch (err) {
+      e.erreur = messageErreur(err);
+      sauver();
+    }
+    preparationEnCours = null;
+  }
+  afficherRetenues();
+  compteurs();
+  if (!$("valider").hidden) afficherFiches();
+}
 
 function afficherRetenues() {
   const retenues = Object.values(donnees.entreprises).filter((e) => e.statut === "retenue");
-  $("bouton-tout-preparer").hidden = retenues.length === 0;
+  $("zone-retenues").hidden = retenues.length === 0;
+  $("nb-retenues").textContent = retenues.length ? `(${retenues.length})` : "";
+  const aPreparer = retenues.filter((e) => !file.includes(e.siren) && preparationEnCours?.siren !== e.siren);
+  $("bouton-tout-preparer").hidden = aPreparer.length === 0;
+  $("bouton-tout-preparer").textContent = aPreparer.length > 1 ? `Préparer les ${aPreparer.length} candidatures` : "Préparer la candidature";
+
   $("retenues").replaceChildren(...retenues.map((e) => {
-    const avancement = enPreparation.get(e.siren);
-    return carteEntreprise(e, [
-      avancement
-        ? el("span", { class: "avancement", texte: avancement })
-        : el("button", { type: "button", class: "bouton principal", texte: "Préparer", onclick: () => preparerUne(e.siren) }),
-      !avancement && el("button", { type: "button", class: "bouton", texte: "Retirer", onclick: () => decider(e, "ecartee") }),
-      e.erreur && el("span", { class: "erreur", texte: e.erreur }),
-    ]);
+    let contenu;
+    if (preparationEnCours?.siren === e.siren) {
+      contenu = listeEtapes(preparationEnCours.etape);
+    } else if (file.includes(e.siren)) {
+      contenu = el("div", { class: "actions" },
+        el("span", { class: "infos", texte: `En attente (${file.indexOf(e.siren) + 1}ᵉ dans la file)` }),
+        el("button", {
+          type: "button", class: "lien-bouton", texte: "Retirer de la file",
+          onclick: () => {
+            file.splice(file.indexOf(e.siren), 1);
+            afficherRetenues();
+            compteurs();
+          },
+        }),
+      );
+    } else {
+      contenu = [
+        e.erreur && el("p", { class: "erreur", texte: e.erreur }),
+        el("div", { class: "actions" },
+          el("button", { type: "button", class: "bouton principal", texte: e.erreur ? "Réessayer" : "Préparer", onclick: () => ajouterALaFile([e.siren]) }),
+          el("button", { type: "button", class: "bouton", texte: "Retirer", onclick: () => decider(e, "ecartee") }),
+        ),
+      ];
+    }
+    return carteEntreprise(e, contenu);
   }));
-  if (!retenues.length) $("retenues").append(el("li", { class: "vide", texte: "Aucune entreprise retenue pour l'instant." }));
   compteurs();
 }
 
@@ -562,7 +774,7 @@ const SCHEMA_CANDIDATURE = {
   },
 };
 
-async function rediger(e, notes) {
+async function rediger(e, notes, consigne = "") {
   const p = donnees.profil;
   const texte = await appelClaude({
     output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA_CANDIDATURE } },
@@ -598,7 +810,9 @@ Ville de la personne : ${p.ville || "Île-de-France"}
 
 <cv_maitre>
 ${p.cvMaitre}
-</cv_maitre>`,
+</cv_maitre>${consigne ? `
+
+Consigne de la personne pour cette version : ${consigne}` : ""}`,
     }],
   });
   return JSON.parse(texte);
@@ -655,72 +869,6 @@ async function trouverAdresse(r) {
   }
   if (publie.adresse) return { email: publie.adresse, fiabilite: "generique", detail: `Publiée : ${publie.source}` };
   return { email: "", fiabilite: "aucune", detail: "" };
-}
-
-// ---------- Préparation ----------
-
-function avancer(siren, message) {
-  if (message) enPreparation.set(siren, message);
-  else enPreparation.delete(siren);
-  afficherRetenues();
-}
-
-async function preparerUne(siren) {
-  const e = donnees.entreprises[siren];
-  if (!e || enPreparation.has(siren)) return;
-  if (!donnees.profil.cvMaitre.trim()) {
-    alerte("Collez d'abord votre CV maître dans l'onglet Profil.");
-    return false;
-  }
-  delete e.erreur;
-  try {
-    claude();
-    avancer(siren, "Recherche de l'entreprise et du contact…");
-    const notes = await rechercherEntreprise(e);
-    avancer(siren, "Rédaction du mail et du CV…");
-    const r = await rediger(e, notes);
-    avancer(siren, "Recherche de l'adresse e-mail…");
-    const adresse = await trouverAdresse(r);
-
-    const ancienne = donnees.candidatures.find((c) => c.siren === siren && c.statut === "a_valider");
-    const candidature = {
-      id: ancienne?.id ?? crypto.randomUUID(),
-      siren,
-      entreprise: { nom: e.nom, activite: e.activite, ville: e.ville, site: r.site },
-      contact: { prenom: r.contact.prenom, nom: r.contact.nom, poste: r.contact.poste, source: r.contact.source, pourquoi: r.contact.pourquoi, ...adresse },
-      angle: r.angle,
-      mail: r.mail,
-      cv: { ...r.cv, experiences: r.cv.experiences.map((x) => ({ ...x, garder: true })) },
-      pieceJointe: "adapte",
-      statut: "a_valider",
-      prepareLe: new Date().toISOString(),
-    };
-    donnees.candidatures = donnees.candidatures.filter((c) => c.id !== candidature.id);
-    donnees.candidatures.push(candidature);
-    e.statut = "preparee";
-    sauver();
-    return true;
-  } catch (err) {
-    e.erreur = messageErreur(err);
-    sauver();
-    return false;
-  } finally {
-    avancer(siren, null);
-  }
-}
-
-async function toutPreparer() {
-  const bouton = $("bouton-tout-preparer");
-  bouton.disabled = true;
-  const sirens = Object.values(donnees.entreprises).filter((e) => e.statut === "retenue").map((e) => e.siren);
-  let reussies = 0;
-  for (const siren of sirens) {
-    const ok = await preparerUne(siren);
-    if (ok === false && !donnees.profil.cvMaitre.trim()) break;
-    if (ok) reussies++;
-  }
-  bouton.disabled = false;
-  if (reussies) alerte(`${reussies} candidature${reussies > 1 ? "s" : ""} prête${reussies > 1 ? "s" : ""} à valider dans l'onglet 3.`);
 }
 
 // ---------- CV en PDF ----------
@@ -904,177 +1052,7 @@ function corpsComplet(corps) {
   return signature ? `${corps.trim()}\n\n${signature}` : corps.trim();
 }
 
-// ---------- 3. Fiches à valider ----------
-
-function champ(libelle, valeur, auChangement, { multi = false, rows = 8, type = "text" } = {}) {
-  const saisie = multi
-    ? el("textarea", { rows: String(rows), oninput: (ev) => auChangement(ev.target.value) })
-    : el("input", { type, oninput: (ev) => auChangement(ev.target.value) });
-  saisie.value = valeur ?? "";
-  return el("label", {}, libelle, saisie);
-}
-
-function badgeFiabilite(contact) {
-  const f = FIABILITE[contact.fiabilite] ?? FIABILITE.aucune;
-  return el("span", { class: `fiabilite ${f.classe}`, title: f.aide, texte: f.libelle });
-}
-
-function fiche(c) {
-  const modifier = (fn) => {
-    fn();
-    sauver();
-  };
-  const ct = c.contact;
-  const cv = c.cv;
-
-  const blocCv = el("div", { class: "bloc-cv", hidden: c.pieceJointe === "origine" },
-    champ("Titre du CV", cv.titre, (v) => modifier(() => (cv.titre = v))),
-    champ("Accroche", cv.accroche, (v) => modifier(() => (cv.accroche = v)), { multi: true, rows: 3 }),
-    el("p", { class: "infos", texte: "Expériences mises en avant (décochez pour retirer, une mission par ligne) :" }),
-    cv.experiences.map((x) => {
-      const coche = el("input", { type: "checkbox", checked: x.garder, onchange: (ev) => modifier(() => (x.garder = ev.target.checked)) });
-      const points = el("textarea", { rows: String(Math.max(2, x.points.length)), oninput: (ev) => modifier(() => (x.points = ev.target.value.split("\n").filter((l) => l.trim()))) });
-      points.value = x.points.join("\n");
-      return el("div", { class: "experience" },
-        el("label", { class: "case" }, coche, el("strong", { texte: `${x.poste} - ${x.structure}` }), el("span", { class: "infos", texte: x.dates })),
-        points,
-      );
-    }),
-    champ("Compétences (séparées par des virgules)", cv.competences.join(", "), (v) => modifier(() => (cv.competences = v.split(",").map((s) => s.trim()).filter(Boolean)))),
-  );
-
-  const choixPj = el("div", { class: "puces" },
-    [["adapte", "CV adapté (généré)"], ["origine", "Mon CV PDF d'origine"]].map(([valeur, libelle]) =>
-      el("button", {
-        type: "button",
-        class: "puce" + (c.pieceJointe === valeur ? " actif" : ""),
-        texte: libelle,
-        disabled: valeur === "origine" && !donnees.profil.cvPdf,
-        title: valeur === "origine" && !donnees.profil.cvPdf ? "Ajoutez votre CV PDF dans l'onglet Profil" : undefined,
-        onclick: (ev) => {
-          modifier(() => (c.pieceJointe = valeur));
-          ev.currentTarget.parentElement.querySelectorAll(".puce").forEach((b) => b.classList.toggle("actif", b === ev.currentTarget));
-          blocCv.hidden = valeur === "origine";
-        },
-      })
-    ),
-  );
-
-  const etat = el("p", { class: "infos" });
-  const valider = el("button", {
-    type: "button",
-    class: "bouton principal",
-    texte: "Valider → brouillon Gmail",
-    onclick: async (ev) => {
-      if (!ct.email) return (etat.textContent = "Renseignez l'adresse e-mail du contact.");
-      const bouton = ev.currentTarget;
-      bouton.disabled = true;
-      etat.textContent = "Création du brouillon…";
-      try {
-        const b = await creerBrouillon({ a: ct.email, objet: c.mail.objet, corps: corpsComplet(c.mail.corps), pj: pieceJointe(c) });
-        modifier(() => Object.assign(c, { statut: "validee", brouillon: b, valideeLe: new Date().toISOString(), reponse: "En attente" }));
-        afficherFiches();
-        alerte(`Brouillon créé pour ${c.entreprise.nom}. Relisez-le dans Gmail puis cliquez vous-même sur « Envoyer ».`);
-      } catch (err) {
-        etat.textContent = err.message;
-        bouton.disabled = false;
-      }
-    },
-  });
-
-  const sansGmail = el("button", {
-    type: "button",
-    class: "bouton",
-    texte: "Sans Gmail : télécharger le CV et ouvrir le mail",
-    onclick: () => {
-      const pj = pieceJointe(c);
-      const a = el("a", { href: `data:application/pdf;base64,${pj.base64}`, download: pj.nom });
-      a.click();
-      location.href = `mailto:${encodeURIComponent(ct.email)}?subject=${encodeURIComponent(c.mail.objet)}&body=${encodeURIComponent(corpsComplet(c.mail.corps))}`;
-      modifier(() => Object.assign(c, { statut: "validee", valideeLe: new Date().toISOString(), reponse: "En attente" }));
-      afficherFiches();
-    },
-  });
-
-  return el("li", { class: "offre fiche" },
-    el("div", { class: "entete" },
-      el("h3", { texte: c.entreprise.nom }),
-      c.entreprise.site && lien("Site", c.entreprise.site),
-    ),
-    el("div", { class: "infos", texte: [c.entreprise.activite, c.entreprise.ville].filter(Boolean).join(" · ") }),
-
-    el("h4", { texte: "Contact" }),
-    el("div", { class: "deux" },
-      champ("Prénom", ct.prenom, (v) => modifier(() => (ct.prenom = v))),
-      champ("Nom", ct.nom, (v) => modifier(() => (ct.nom = v))),
-      champ("Poste", ct.poste, (v) => modifier(() => (ct.poste = v))),
-      el("label", {}, el("span", {}, "E-mail ", badgeFiabilite(ct)),
-        (() => {
-          const i = el("input", { type: "email", oninput: (ev) => modifier(() => (ct.email = ev.target.value)) });
-          i.value = ct.email;
-          return i;
-        })()),
-    ),
-    el("p", { class: "infos" },
-      [ct.pourquoi, ct.detail].filter(Boolean).join(" · "),
-      ct.source?.startsWith("http") ? [" · ", lien("source", ct.source)] : ct.source ? ` · ${ct.source}` : "",
-      ct.generique ? ` · Adresse générale de repli : ${ct.generique}` : "",
-    ),
-
-    el("h4", { texte: "Angle" }),
-    el("p", { texte: c.angle.accroche }),
-    c.angle.sources.length > 0 && el("ul", { class: "sources" },
-      c.angle.sources.map((s) => el("li", {}, lien(s.titre || s.url, s.url), s.date ? ` (${s.date})` : "")),
-    ),
-
-    el("h4", { texte: "Mail" }),
-    champ("Objet", c.mail.objet, (v) => modifier(() => (c.mail.objet = v))),
-    champ("Message (la signature du profil est ajoutée à la fin)", c.mail.corps, (v) => modifier(() => (c.mail.corps = v)), { multi: true, rows: 12 }),
-
-    el("h4", { texte: "CV joint" }),
-    choixPj,
-    blocCv,
-    el("button", { type: "button", class: "bouton", texte: "Aperçu du CV", onclick: () => apercuCv(c) }),
-
-    el("div", { class: "actions validation" },
-      valider,
-      el("button", {
-        type: "button", class: "bouton", texte: "Refaire la recherche",
-        onclick: async (ev) => {
-          ev.currentTarget.disabled = true;
-          etat.textContent = "Nouvelle recherche en cours (une à deux minutes)…";
-          const e = donnees.entreprises[c.siren];
-          if (e) e.statut = "retenue";
-          const ok = await preparerUne(c.siren);
-          if (!ok && e) {
-            e.statut = "preparee";
-            sauver();
-          }
-          afficherFiches();
-          if (!ok) alerte(e?.erreur ?? "La préparation a échoué.");
-        },
-      }),
-      el("button", {
-        type: "button", class: "bouton danger", texte: "Rejeter",
-        onclick: () => {
-          modifier(() => (c.statut = "rejetee"));
-          afficherFiches();
-        },
-      }),
-    ),
-    el("details", { class: "repli" }, el("summary", { texte: "Pas de Gmail ?" }), sansGmail),
-    etat,
-  );
-}
-
-function afficherFiches() {
-  const aValider = donnees.candidatures.filter((c) => c.statut === "a_valider");
-  $("fiches").replaceChildren(...aValider.map(fiche));
-  if (!aValider.length) $("fiches").append(el("li", { class: "vide", texte: "Rien à valider. Retenez des entreprises dans l'onglet 2 puis lancez la préparation." }));
-  compteurs();
-}
-
-// ---------- 4. Suivi ----------
+// ---------- Relance ----------
 
 async function redigerRelance(c) {
   const p = donnees.profil;
@@ -1103,27 +1081,432 @@ ${c.mail.corps}`,
   })).corps;
 }
 
-function blocRelance(c, cellule) {
-  const zone = el("div", { class: "relance" });
-  const texte = el("textarea", { rows: "6" });
-  const etat = el("span", { class: "infos" });
-  const preparer = el("button", {
-    type: "button", class: "bouton", texte: "Préparer la relance",
+// ---------- Préparation ----------
+
+// Prépare (ou régénère) la candidature d'une entreprise retenue.
+// Sans `refaireRecherche`, une régénération réutilise les notes de recherche et le contact.
+async function preparer(siren, { consigne = "", refaireRecherche = true, surEtape = () => {} } = {}) {
+  const e = donnees.entreprises[siren];
+  const ancienne = donnees.candidatures.find((c) => c.siren === siren && c.statut === "a_valider");
+  const nouvelleRecherche = refaireRecherche || !ancienne?.notes;
+
+  surEtape(0);
+  const notes = nouvelleRecherche ? await rechercherEntreprise(e) : ancienne.notes;
+  surEtape(1);
+  const r = await rediger(e, notes, consigne);
+  surEtape(2);
+  const contact = nouvelleRecherche
+    ? { prenom: r.contact.prenom, nom: r.contact.nom, poste: r.contact.poste, source: r.contact.source, pourquoi: r.contact.pourquoi, ...(await trouverAdresse(r)) }
+    : ancienne.contact;
+
+  const candidature = {
+    id: ancienne?.id ?? crypto.randomUUID(),
+    siren,
+    entreprise: { nom: e.nom, activite: e.activite, ville: e.ville, site: r.site || ancienne?.entreprise.site || "" },
+    notes,
+    contact,
+    verifiee: nouvelleRecherche ? false : ancienne.verifiee,
+    angle: r.angle,
+    mail: r.mail,
+    cv: { ...r.cv, experiences: r.cv.experiences.map((x) => ({ ...x, garder: true })) },
+    pieceJointe: ancienne?.pieceJointe ?? "adapte",
+    precedente: ancienne ? { angle: ancienne.angle, mail: ancienne.mail, cv: ancienne.cv, contact: ancienne.contact } : null,
+    statut: "a_valider",
+    prepareLe: ancienne?.prepareLe ?? new Date().toISOString(),
+  };
+  donnees.candidatures = donnees.candidatures.filter((c) => c.id !== candidature.id);
+  donnees.candidatures.push(candidature);
+  sauver();
+  return candidature;
+}
+
+// ---------- À valider : une candidature à la fois ----------
+
+let positionFiche = 0;
+let ficheEnEdition = null; // id de la candidature dont le mail est en mode modification
+
+const ADRESSE_A_VERIFIER = ["supposee", "aucune"];
+
+function champ(libelle, valeur, auChangement, { multi = false, rows = 8, type = "text", id } = {}) {
+  const saisie = multi
+    ? el("textarea", { id, rows: String(rows), oninput: (ev) => auChangement(ev.target.value) })
+    : el("input", { id, type, oninput: (ev) => auChangement(ev.target.value) });
+  saisie.value = valeur ?? "";
+  return el("label", {}, libelle, saisie);
+}
+
+function badgeFiabilite(contact) {
+  const f = FIABILITE[contact.fiabilite] ?? FIABILITE.aucune;
+  return el("span", { class: `fiabilite ${f.classe}`, texte: f.libelle });
+}
+
+function blocContact(c, rafraichir) {
+  const ct = c.contact;
+  const modifier = (fn) => {
+    fn();
+    sauver();
+  };
+  const f = FIABILITE[ct.fiabilite] ?? FIABILITE.aucune;
+  const email = el("input", {
+    id: `email-${c.id}`,
+    type: "email",
+    oninput: (ev) => modifier(() => (ct.email = ev.target.value.trim())),
+    onchange: () => modifier(() => {
+      ct.fiabilite = ct.email ? "saisie" : "aucune";
+      ct.detail = "";
+      rafraichir();
+    }),
+  });
+  email.value = ct.email;
+
+  return el("section", { "aria-labelledby": `contact-${c.id}` },
+    el("h4", { class: "etiquette-section", id: `contact-${c.id}`, texte: "Contact" }),
+    el("div", { class: "deux" },
+      champ("Prénom", ct.prenom, (v) => modifier(() => (ct.prenom = v))),
+      champ("Nom", ct.nom, (v) => modifier(() => (ct.nom = v))),
+      champ("Poste", ct.poste, (v) => modifier(() => (ct.poste = v))),
+      el("label", { for: `email-${c.id}` }, el("span", {}, "E-mail ", badgeFiabilite(ct)), email),
+    ),
+    el("p", { class: "explication" }, f.aide, ct.detail ? ` (${ct.detail})` : ""),
+    (ct.pourquoi || ct.source) && el("p", { class: "explication" },
+      ct.pourquoi,
+      ct.source?.startsWith("http") ? [" ", lien("Voir la source ↗", ct.source)] : ct.source ? ` Source : ${ct.source}.` : "",
+    ),
+    ct.generique && el("p", { class: "explication", texte: `Adresse générale de repli : ${ct.generique}` }),
+    ADRESSE_A_VERIFIER.includes(ct.fiabilite) && el("div", { class: "verif" + (c.verifiee ? " ok" : "") },
+      el("label", { class: "case" },
+        el("input", {
+          type: "checkbox",
+          checked: !!c.verifiee,
+          onchange: (ev) => modifier(() => {
+            c.verifiee = ev.target.checked;
+            rafraichir();
+          }),
+        }),
+        "J'ai vérifié cette adresse (site de l'entreprise, LinkedIn, appel…)",
+      ),
+    ),
+  );
+}
+
+function blocAngle(c) {
+  return el("section", {},
+    el("h4", { class: "etiquette-section", texte: "Accroche" }),
+    el("p", { texte: c.angle.accroche }),
+    c.angle.sources.length > 0 && el("ol", { class: "sources" },
+      c.angle.sources.map((s) => el("li", {}, lien(`${s.titre || s.url} ↗`, s.url), s.date ? ` (${s.date})` : "")),
+    ),
+  );
+}
+
+function nomPieceJointe(c) {
+  return c.pieceJointe === "origine" && donnees.profil.cvPdf ? donnees.profil.cvPdf.nom : nomFichierCv();
+}
+
+function blocMail(c, rafraichir) {
+  const enEdition = ficheEnEdition === c.id;
+  const basculer = el("button", {
+    type: "button",
+    class: "bouton",
+    texte: enEdition ? "Terminer" : "Modifier le mail",
+    onclick: () => {
+      ficheEnEdition = enEdition ? null : c.id;
+      rafraichir();
+    },
+  });
+  const contenu = enEdition
+    ? [
+      champ("Objet", c.mail.objet, (v) => {
+        c.mail.objet = v;
+        sauver();
+      }, { id: `objet-${c.id}` }),
+      champ("Message (votre signature est ajoutée à la fin)", c.mail.corps, (v) => {
+        c.mail.corps = v;
+        sauver();
+      }, { multi: true, rows: 14, id: `corps-${c.id}` }),
+    ]
+    : el("div", { class: "apercu-mail" },
+      el("dl", {},
+        el("dt", { texte: "À" }), el("dd", { texte: c.contact.email || "adresse à renseigner" }),
+        el("dt", { texte: "Objet" }), el("dd", {}, el("strong", { texte: c.mail.objet })),
+      ),
+      el("div", { class: "corps", texte: corpsComplet(c.mail.corps) }),
+      el("span", { class: "tag pj", texte: `📎 ${nomPieceJointe(c)}` }),
+    );
+  return el("section", {},
+    el("div", { class: "actions", style: "justify-content: space-between" },
+      el("h4", { class: "etiquette-section", texte: "Mail" }),
+      basculer,
+    ),
+    contenu,
+  );
+}
+
+function blocRegenerer(c, rafraichir) {
+  const consignes = ["Plus court", "Plus formel", "Plus chaleureux", "Autre accroche"];
+  const choix = el("div", { class: "puces" },
+    consignes.map((t) => el("button", {
+      type: "button",
+      class: "puce",
+      "aria-pressed": "false",
+      texte: t,
+      onclick: (ev) => ev.currentTarget.setAttribute("aria-pressed", String(ev.currentTarget.getAttribute("aria-pressed") !== "true")),
+    })),
+  );
+  const libre = el("textarea", { rows: "2", id: `consigne-${c.id}`, placeholder: "Ex. parler de mon expérience au festival X, ne pas mentionner le stage" });
+  const recherche = el("input", { type: "checkbox" });
+  const etat = el("div", { class: "infos" });
+  const bouton = el("button", {
+    type: "button",
+    class: "bouton principal",
+    texte: "Régénérer",
     onclick: async () => {
-      preparer.disabled = true;
-      etat.textContent = "Rédaction…";
+      if (!prerequisPreparation()) return;
+      const consigne = [
+        ...[...choix.querySelectorAll('[aria-pressed="true"]')].map((b) => b.textContent),
+        libre.value.trim(),
+      ].filter(Boolean).join(". ");
+      bouton.disabled = true;
       try {
-        texte.value = await redigerRelance(c);
-        zone.replaceChildren(texte, el("div", { class: "actions" }, creer, annuler), etat);
-        etat.textContent = "";
+        await preparer(c.siren, {
+          consigne,
+          refaireRecherche: recherche.checked,
+          surEtape: (i) => etat.replaceChildren(listeEtapes(recherche.checked ? i : Math.max(i, 1))),
+        });
+        ficheEnEdition = null;
+        toast("Nouvelle version prête");
+        rafraichir();
       } catch (err) {
-        etat.textContent = messageErreur(err);
-        preparer.disabled = false;
+        etat.replaceChildren(el("p", { class: "erreur", texte: messageErreur(err) }));
+        bouton.disabled = false;
       }
     },
   });
+
+  return el("details", { class: "repli" },
+    el("summary", { texte: "Régénérer avec une consigne…" }),
+    el("div", { class: "contenu" },
+      choix,
+      el("label", { for: `consigne-${c.id}` }, "Autre consigne (facultatif)", libre),
+      el("label", { class: "case" }, recherche, "Refaire aussi la recherche (autre contact, autre actualité)"),
+      el("div", { class: "actions" },
+        bouton,
+        c.precedente && el("button", {
+          type: "button",
+          class: "bouton",
+          texte: "Revenir à la version précédente",
+          onclick: () => {
+            const { angle, mail, cv, contact } = c.precedente;
+            c.precedente = { angle: c.angle, mail: c.mail, cv: c.cv, contact: c.contact };
+            Object.assign(c, { angle, mail, cv, contact });
+            sauver();
+            toast("Version précédente rétablie");
+            rafraichir();
+          },
+        }),
+      ),
+      etat,
+    ),
+  );
+}
+
+function blocCv(c) {
+  const cv = c.cv;
+  const modifier = (fn) => {
+    fn();
+    sauver();
+  };
+  const details = el("div", { class: "contenu" });
+  const champsCv = el("div", { class: "contenu", hidden: c.pieceJointe === "origine" },
+    champ("Titre du CV", cv.titre, (v) => modifier(() => (cv.titre = v))),
+    champ("Accroche", cv.accroche, (v) => modifier(() => (cv.accroche = v)), { multi: true, rows: 3 }),
+    el("p", { class: "infos", texte: "Expériences mises en avant. Décochez pour en retirer une ; une mission par ligne." }),
+    cv.experiences.map((x, i) => {
+      const id = `exp-${c.id}-${i}`;
+      const points = el("textarea", {
+        id,
+        rows: String(Math.max(3, x.points.length + 1)),
+        oninput: (ev) => modifier(() => (x.points = ev.target.value.split("\n").filter((l) => l.trim()))),
+      });
+      points.value = x.points.join("\n");
+      return el("div", { class: "experience" },
+        el("label", { class: "case" },
+          el("input", { type: "checkbox", checked: x.garder, onchange: (ev) => modifier(() => (x.garder = ev.target.checked)) }),
+          el("span", {}, el("strong", { texte: `${x.poste} · ${x.structure}` }), " ", el("span", { class: "infos", texte: x.dates })),
+        ),
+        el("label", { for: id, class: "infos" }, "Missions", points),
+      );
+    }),
+    champ("Compétences (séparées par des virgules)", cv.competences.join(", "), (v) => modifier(() => (cv.competences = v.split(",").map((s) => s.trim()).filter(Boolean)))),
+  );
+
+  const resume = el("span", { texte: `CV joint : ${c.pieceJointe === "origine" ? "mon CV d'origine" : "CV adapté"}` });
+  const choix = el("div", { class: "puces" },
+    [["adapte", "CV adapté à l'entreprise"], ["origine", "Mon CV PDF d'origine"]].map(([valeur, libelle]) =>
+      el("button", {
+        type: "button",
+        class: "puce",
+        "aria-pressed": String(c.pieceJointe === valeur),
+        texte: libelle,
+        disabled: valeur === "origine" && !donnees.profil.cvPdf,
+        title: valeur === "origine" && !donnees.profil.cvPdf ? "Ajoutez votre CV PDF dans le profil" : undefined,
+        onclick: (ev) => {
+          modifier(() => (c.pieceJointe = valeur));
+          choix.querySelectorAll(".puce").forEach((b) => b.setAttribute("aria-pressed", String(b === ev.currentTarget)));
+          champsCv.hidden = valeur === "origine";
+          resume.textContent = `CV joint : ${valeur === "origine" ? "mon CV d'origine" : "CV adapté"}`;
+        },
+      })
+    ),
+  );
+  details.append(
+    choix,
+    champsCv,
+    el("div", { class: "actions" }, el("button", { type: "button", class: "bouton", texte: "Voir le CV (PDF)", onclick: () => apercuCv(c) })),
+  );
+  return el("details", { class: "repli" }, el("summary", {}, resume), details);
+}
+
+function ficheValidation(c, rafraichir) {
+  const ct = c.contact;
+  const etat = el("p", { class: "infos", "aria-live": "polite" });
+  const aVerifier = ADRESSE_A_VERIFIER.includes(ct.fiabilite) && !c.verifiee;
+  const blocage = !ct.email ? "Renseignez l'adresse e-mail du contact." : aVerifier ? "Cochez « J'ai vérifié cette adresse » pour continuer." : "";
+
   const creer = el("button", {
-    type: "button", class: "bouton principal", texte: "Valider → brouillon",
+    type: "button",
+    class: "bouton principal",
+    texte: "Créer le brouillon Gmail",
+    disabled: !!blocage,
+    title: blocage || undefined,
+    onclick: async () => {
+      creer.disabled = true;
+      etat.textContent = "Création du brouillon…";
+      try {
+        const b = await creerBrouillon({ a: ct.email, objet: c.mail.objet, corps: corpsComplet(c.mail.corps), pj: pieceJointe(c) });
+        Object.assign(c, { statut: "validee", brouillon: b, valideeLe: new Date().toISOString(), reponse: "En attente" });
+        sauver();
+        toast(`Brouillon créé dans Gmail pour ${c.entreprise.nom}`, { libelle: "Ouvrir", faire: () => window.open(lienBrouillon(b.messageId), "_blank", "noopener") });
+        rafraichir();
+      } catch (err) {
+        etat.textContent = err.message;
+        creer.disabled = false;
+      }
+    },
+  });
+
+  const sansGmail = el("button", {
+    type: "button",
+    class: "lien-bouton",
+    texte: "Pas de Gmail ? Télécharger le CV et ouvrir le mail",
+    disabled: !!blocage,
+    title: "Télécharge le CV et ouvre le mail dans votre messagerie habituelle",
+    onclick: () => {
+      const pj = pieceJointe(c);
+      el("a", { href: `data:application/pdf;base64,${pj.base64}`, download: pj.nom }).click();
+      location.href = `mailto:${encodeURIComponent(ct.email)}?subject=${encodeURIComponent(c.mail.objet)}&body=${encodeURIComponent(corpsComplet(c.mail.corps))}`;
+      Object.assign(c, { statut: "validee", valideeLe: new Date().toISOString(), reponse: "En attente" });
+      sauver();
+      toast("CV téléchargé. Joignez-le au mail avant d'envoyer.");
+      rafraichir();
+    },
+  });
+
+  const ecarter = el("button", {
+    type: "button",
+    class: "bouton discret danger",
+    texte: "Écarter",
+    onclick: () => {
+      c.statut = "rejetee";
+      sauver();
+      rafraichir();
+      toast(`Candidature ${c.entreprise.nom} écartée`, {
+        libelle: "Annuler",
+        faire: () => {
+          c.statut = "a_valider";
+          sauver();
+          rafraichir();
+        },
+      });
+    },
+  });
+
+  return el("article", { class: "bloc fiche", "aria-labelledby": `titre-${c.id}` },
+    el("header", {},
+      el("div", { class: "entete actions", style: "justify-content: space-between" },
+        el("h3", { id: `titre-${c.id}`, texte: c.entreprise.nom }),
+        c.entreprise.site && lien("Site ↗", c.entreprise.site),
+      ),
+      el("p", { class: "infos", texte: [c.entreprise.activite, c.entreprise.ville].filter(Boolean).join(" · ") }),
+      el("p", { class: "ia", texte: "Proposé par l'IA à partir de recherches sur le web : relisez avant d'envoyer." }),
+    ),
+    blocContact(c, rafraichir),
+    blocAngle(c),
+    blocMail(c, rafraichir),
+    blocRegenerer(c, rafraichir),
+    blocCv(c),
+    el("div", { class: "barre-actions" },
+      el("div", { class: "ligne" }, ecarter, creer),
+      blocage && el("p", { class: "infos petit", texte: blocage }),
+      etat,
+    ),
+    el("div", { class: "actions" }, sansGmail),
+  );
+}
+
+function afficherFiches() {
+  const liste = candidaturesAvecStatut("a_valider").sort((a, b) => a.prepareLe.localeCompare(b.prepareLe));
+  const zone = $("file-valider");
+  compteurs();
+
+  if (!liste.length) {
+    const enCours = file.length + (preparationEnCours ? 1 : 0);
+    zone.replaceChildren(el("div", { class: "vide" },
+      el("p", { texte: enCours ? `${pluriel(enCours, "candidature")} en préparation. Elles apparaîtront ici dès qu'elles seront prêtes.` : "Rien à relire pour l'instant." }),
+      el("div", { class: "actions" }, el("a", { class: "bouton principal", href: "#entreprises", texte: enCours ? "Suivre la préparation" : "Choisir des entreprises" })),
+    ));
+    return;
+  }
+
+  positionFiche = Math.min(Math.max(positionFiche, 0), liste.length - 1);
+  const c = liste[positionFiche];
+  const rafraichir = () => afficherFiches();
+  const aller = (delta) => {
+    positionFiche += delta;
+    ficheEnEdition = null;
+    afficherFiches();
+    $("titre-valider").scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  zone.replaceChildren(...[
+    liste.length > 1 && el("div", { class: "file-nav" },
+      el("button", { type: "button", class: "bouton", texte: "‹ Précédente", disabled: positionFiche === 0, onclick: () => aller(-1) }),
+      el("span", { class: "position", texte: `${positionFiche + 1} sur ${liste.length}` }),
+      el("button", { type: "button", class: "bouton", texte: "Suivante ›", disabled: positionFiche === liste.length - 1, onclick: () => aller(1) }),
+    ),
+    ficheValidation(c, rafraichir),
+  ].filter(Boolean));
+}
+
+// ---------- Suivi ----------
+
+function situation(c) {
+  const reponse = c.reponse ?? "En attente";
+  if (reponse === "Positive") return { texte: "Réponse positive", classe: "positive", ordre: 3 };
+  if (reponse === "Négative") return { texte: "Réponse négative", classe: "negative", ordre: 4 };
+  if (reponse === "Pas de réponse") return { texte: "Sans réponse", classe: "", ordre: 4 };
+  if (!c.dateEnvoi) return { texte: c.brouillon ? "Brouillon à envoyer" : "À envoyer", classe: "a-faire", ordre: 1 };
+  if (relanceDue(c)) return { texte: "Relance à préparer", classe: "a-faire", ordre: 0 };
+  if (c.relance) return { texte: `Relancée le ${dateCourte(c.relance.le)}`, classe: "", ordre: 2 };
+  return { texte: `Relance le ${dateCourte(ajouterJours(c.dateEnvoi, JOURS_AVANT_RELANCE))}`, classe: "", ordre: 2 };
+}
+
+function blocRelance(c) {
+  const zone = el("div", { class: "relance" });
+  const texte = el("textarea", { rows: "6", "aria-label": `Relance pour ${c.entreprise.nom}` });
+  const etat = el("span", { class: "infos" });
+  const creer = el("button", {
+    type: "button", class: "bouton principal", texte: "Créer le brouillon de relance",
     onclick: async () => {
       creer.disabled = true;
       etat.textContent = "Création du brouillon…";
@@ -1132,6 +1515,7 @@ function blocRelance(c, cellule) {
         const b = await creerBrouillon({ a: c.contact.email, objet, corps: corpsComplet(texte.value), filDiscussion: c.brouillon?.filDiscussion });
         c.relance = { corps: texte.value, brouillon: b, le: new Date().toISOString() };
         sauver();
+        toast("Brouillon de relance créé dans Gmail", { libelle: "Ouvrir", faire: () => window.open(lienBrouillon(b.messageId), "_blank", "noopener") });
         afficherSuivi();
       } catch (err) {
         etat.textContent = err.message;
@@ -1139,58 +1523,85 @@ function blocRelance(c, cellule) {
       }
     },
   });
-  const annuler = el("button", { type: "button", class: "bouton", texte: "Annuler", onclick: () => afficherSuivi() });
-  zone.append(preparer, etat);
-  cellule.append(zone);
+  const preparerRelance = el("button", {
+    type: "button", class: "bouton principal", texte: "Préparer la relance",
+    onclick: async () => {
+      if (!prerequisPreparation()) return;
+      preparerRelance.disabled = true;
+      etat.textContent = "Rédaction…";
+      try {
+        texte.value = await redigerRelance(c);
+        etat.textContent = "";
+        zone.replaceChildren(texte, el("div", { class: "actions" }, creer, el("button", { type: "button", class: "bouton", texte: "Annuler", onclick: () => afficherSuivi() })), etat);
+      } catch (err) {
+        etat.textContent = messageErreur(err);
+        preparerRelance.disabled = false;
+      }
+    },
+  });
+  zone.append(el("div", { class: "actions" }, preparerRelance, etat));
+  return zone;
 }
 
 function afficherSuivi() {
-  const lignes = donnees.candidatures
-    .filter((c) => c.statut === "validee")
-    .sort((a, b) => (b.valideeLe ?? "").localeCompare(a.valideeLe ?? ""));
+  const lignes = candidaturesAvecStatut("validee")
+    .map((c) => ({ c, s: situation(c) }))
+    .sort((a, b) => a.s.ordre - b.s.ordre || (b.c.valideeLe ?? "").localeCompare(a.c.valideeLe ?? ""));
 
-  $("suivi-lignes").replaceChildren(...lignes.map((c) => {
+  const compte = (filtre) => lignes.filter(filtre).length;
+  const resume = [
+    [compte(({ s }) => s.ordre === 0), "relance à préparer", "relances à préparer", "a-faire"],
+    [compte(({ s }) => s.ordre === 1), "à envoyer depuis Gmail", "à envoyer depuis Gmail", "a-faire"],
+    [compte(({ s }) => s.ordre === 2), "en attente de réponse", "en attente de réponse", ""],
+    [compte(({ c }) => c.reponse === "Positive"), "réponse positive", "réponses positives", "positive"],
+  ].filter(([n]) => n > 0);
+  $("resume-suivi").replaceChildren(...resume.map(([n, un, plusieurs, classe]) =>
+    el("span", { class: `statut ${classe}`, texte: pluriel(n, un, plusieurs) })));
+
+  $("suivi-lignes").replaceChildren(...lignes.map(({ c, s }) => {
     const modifier = (fn) => {
       fn();
       sauver();
       afficherSuivi();
     };
-    const dateEnvoi = el("input", { type: "date", value: c.dateEnvoi ?? "", onchange: (ev) => modifier(() => (c.dateEnvoi = ev.target.value || undefined)) });
-    const reponse = el("select", { onchange: (ev) => modifier(() => (c.reponse = ev.target.value)) },
+    const idDate = `envoi-${c.id}`;
+    const idReponse = `reponse-${c.id}`;
+    const dateEnvoi = el("input", { id: idDate, type: "date", value: c.dateEnvoi ?? "", onchange: (ev) => modifier(() => (c.dateEnvoi = ev.target.value || undefined)) });
+    const reponse = el("select", { id: idReponse, onchange: (ev) => modifier(() => (c.reponse = ev.target.value)) },
       REPONSES.map((r) => el("option", { texte: r, selected: (c.reponse ?? "En attente") === r })));
 
-    const relancePrevue = c.dateEnvoi ? ajouterJours(c.dateEnvoi, JOURS_AVANT_RELANCE) : null;
-    const relanceDue = relancePrevue && relancePrevue <= aujourdhui() && (c.reponse ?? "En attente") === "En attente" && !c.relance;
-    const celluleRelance = el("td", {});
-    if (c.relance) {
-      celluleRelance.append(
-        c.relance.brouillon ? lien(`Brouillon du ${dateCourte(c.relance.le)}`, lienBrouillon(c.relance.brouillon.messageId)) : `Préparée le ${dateCourte(c.relance.le)}`,
-      );
-    } else if (relanceDue) {
-      blocRelance(c, celluleRelance);
-    } else {
-      celluleRelance.textContent = relancePrevue ? `Prévue le ${dateCourte(relancePrevue)}` : "Après l'envoi";
-    }
-
-    return el("tr", { class: relanceDue ? "a-relancer" : "" },
-      el("td", {}, el("strong", { texte: c.entreprise.nom }), el("div", { class: "infos", texte: c.mail.objet })),
-      el("td", {}, `${c.contact.prenom} ${c.contact.nom}`.trim(), el("div", { class: "infos", texte: c.contact.email })),
-      el("td", {}, dateEnvoi,
-        !c.dateEnvoi && el("button", { type: "button", class: "lien-bouton", texte: "Envoyée aujourd'hui", onclick: () => modifier(() => (c.dateEnvoi = aujourdhui())) })),
-      celluleRelance,
-      el("td", {}, reponse),
-      el("td", {}, c.brouillon && lien("Gmail", lienBrouillon(c.brouillon.messageId))),
+    return el("li", { class: "carte ligne-suivi" },
+      el("div", {}, el("h3", { texte: c.entreprise.nom }), el("p", { class: "infos petit", texte: c.mail.objet })),
+      el("div", { class: "contact" },
+        el("p", { texte: `${c.contact.prenom} ${c.contact.nom}`.trim() }),
+        el("p", { class: "infos petit", texte: c.contact.email }),
+      ),
+      el("span", { class: `statut ${s.classe}`, texte: s.texte }),
+      el("div", { class: "champs" },
+        el("label", { for: idDate }, "Envoyée le", dateEnvoi),
+        el("label", { for: idReponse }, "Réponse", reponse),
+      ),
+      el("div", { class: "actions", style: "grid-column: 1 / -1" },
+        !c.dateEnvoi && el("button", { type: "button", class: "bouton", texte: "Envoyée aujourd'hui", onclick: () => modifier(() => (c.dateEnvoi = aujourdhui())) }),
+        c.brouillon && lien("Mail dans Gmail ↗", lienBrouillon(c.brouillon.messageId)),
+        c.relance?.brouillon && lien("Relance dans Gmail ↗", lienBrouillon(c.relance.brouillon.messageId)),
+      ),
+      relanceDue(c) && blocRelance(c),
     );
   }));
   if (!lignes.length) {
-    $("suivi-lignes").append(el("tr", {}, el("td", { colspan: "6", class: "vide", texte: "Aucune candidature validée pour l'instant." })));
+    $("suivi-lignes").append(el("li", { class: "vide" },
+      el("p", { texte: "Aucune candidature envoyée pour l'instant. Elles apparaissent ici dès que vous créez un brouillon." }),
+      el("div", { class: "actions" }, el("a", { class: "bouton principal", href: "#valider", texte: "Relire les candidatures" })),
+    ));
   }
 
-  const rejetees = donnees.candidatures.filter((c) => c.statut === "rejetee");
+  const rejetees = candidaturesAvecStatut("rejetee");
+  $("nb-rejetees").textContent = rejetees.length ? `(${rejetees.length})` : "";
   $("rejetees").replaceChildren(...rejetees.map((c) => el("li", {},
     c.entreprise.nom, " ",
     el("button", {
-      type: "button", class: "lien-bouton", texte: "Remettre à valider",
+      type: "button", class: "lien-bouton", texte: "Remettre à relire",
       onclick: () => {
         c.statut = "a_valider";
         sauver();
@@ -1258,7 +1669,13 @@ $("bouton-plus").addEventListener("click", () => {
   chercher(false);
 });
 $("bouton-ma-liste").addEventListener("click", chercherMaListe);
-$("bouton-tout-preparer").addEventListener("click", toutPreparer);
+$("bouton-tout-preparer").addEventListener("click", () => {
+  const sirens = Object.values(donnees.entreprises).filter((e) => e.statut === "retenue").map((e) => e.siren);
+  ajouterALaFile(sirens);
+});
 window.addEventListener("hashchange", onglet);
+window.addEventListener("beforeunload", (ev) => {
+  if (preparationEnCours || file.length) ev.preventDefault();
+});
 onglet();
 compteurs();
