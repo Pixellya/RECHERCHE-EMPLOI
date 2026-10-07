@@ -195,8 +195,18 @@ Ensuite, plus rien à faire : il se met à jour tout seul.
 
 ## Personnaliser
 
-- **Métiers suivis** : les listes `ROME` (codes métiers France Travail) et
-  `MOTS_CLES` en haut de `scripts/fetch-offres.mjs`.
+- **Métiers suivis** : le fichier `scripts/metiers.json`, commun à toutes les sources :
+  - `recherches` : les mots-clés envoyés aux sites (événementiel, production
+    événementielle, event manager, chef de projet MICE, attaché de presse…) ;
+  - `titres` : les mots qui, dans le titre d'une annonce, suffisent à la classer en
+    Événementiel ou en Communication (chargée de production, régisseuse, wedding
+    planner, community manager…) ;
+  - `missions` : quand le titre est vague (« Project Manager »), l'annonce est gardée
+    si sa description cite au moins 3 missions du métier (salons, séminaires,
+    prestataires, rétroplanning…) ;
+  - `exclus` : les titres écartés (stage, alternance, sécurité, service en salle…).
+
+  Les codes métiers France Travail sont dans la liste `ROME` de `scripts/fetch-offres.mjs`.
 - **Ancienneté des offres** : la constante `JOURS` (14 jours par défaut).
 - **Liens vers les autres sites** : le fichier `sites.js`.
 - **Fréquence de mise à jour** : la ligne `cron` dans

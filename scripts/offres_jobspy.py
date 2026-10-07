@@ -11,6 +11,7 @@ import json
 import re
 import sys
 import time
+import unicodedata
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -18,15 +19,11 @@ from jobspy import scrape_jobs
 
 SORTIE = Path(__file__).resolve().parent.parent / "data" / "offres_jobspy.json"
 JOURS = 14
-PAR_RECHERCHE = 20  # volume volontairement faible
-PAUSE = 8  # secondes entre deux recherches
+PAR_RECHERCHE = 15  # volume volontairement faible
+PAUSE = 5  # secondes entre deux recherches
 
-RECHERCHES = [
-    "événementiel",
-    "chef de projet événementiel",
-    "chargé de communication",
-    "chargée de communication",
-]
+METIERS = json.loads((Path(__file__).resolve().parent / "metiers.json").read_text(encoding="utf-8"))
+RECHERCHES = METIERS["recherches"]
 
 SITES = {
     "indeed": {"country_indeed": "France", "location": "Île-de-France"},
@@ -40,9 +37,25 @@ IDF = re.compile(
     r",\s*A8\b",  # code de l'Île-de-France chez Indeed (« Noisy-le-Grand, A8, FR »)
     re.I,
 )
-EXCLUS = re.compile(r"\b(stage|stagiaire|altern|apprenti|freelance|ind[ée]pendant|int[ée]rim)", re.I)
-EVENEMENTIEL = re.compile(r"[éèe]v[éèe]nement|event|salon|festival|s[ée]minaire|r[ée]gie|congr[eè]s", re.I)
-COMMUNICATION = re.compile(r"communication|community|relations presse|attach[ée]e? de presse|r[ée]seaux sociaux|brand|marketing", re.I)
+
+
+def simplifier(texte):
+    """Minuscules, sans accents, sans marques de genre (« chargé(e) » → « charge »)."""
+    t = unicodedata.normalize("NFD", texte or "")
+    t = "".join(c for c in t if unicodedata.category(c) != "Mn").lower().replace("’", "'")
+    t = re.sub(r"[-‐–]", " ", t)
+    t = re.sub(r"([a-z])[(·.](e|ne|se|euse|rice|trice)\)?(?![a-z])", r"\1", t)
+    return re.sub(r"\s+", " ", t)
+
+
+def motif(termes):
+    # Reconnu en début de mot : « event » trouve « events » mais pas « prévention ».
+    return re.compile(r"(?<![a-z0-9])(" + "|".join(re.escape(t) for t in termes) + ")")
+
+
+TITRES = {cat: motif(t) for cat, t in METIERS["titres"].items()}
+MISSIONS = {cat: motif(t) for cat, t in METIERS["missions"].items()}
+EXCLUS = motif(METIERS["exclus"])
 
 
 def valeur(x):
@@ -58,11 +71,16 @@ def contrat(texte):
     return None
 
 
-def categorie(titre):
-    if EVENEMENTIEL.search(titre):
-        return "Événementiel"
-    if COMMUNICATION.search(titre):
-        return "Communication"
+def categorie(titre, description=""):
+    """Le titre d'abord ; s'il est vague, les missions décrites dans l'annonce."""
+    t = simplifier(titre)
+    for cat, expr in TITRES.items():
+        if expr.search(t):
+            return cat
+    d = simplifier(description)
+    for cat, expr in MISSIONS.items():
+        if len(set(expr.findall(d))) >= METIERS["missions_minimum"]:
+            return cat
     return None
 
 
@@ -89,15 +107,16 @@ def main():
                 titre = valeur(r.get("title")) or ""
                 lieu = valeur(r.get("location")) or ""
                 # Contrat lu dans le titre ou la description ; sinon « Contrat à vérifier » sur le site.
-                type_contrat = contrat(f"{titre} {valeur(r.get('description')) or ''}")
+                description = valeur(r.get("description")) or ""
+                type_contrat = contrat(f"{titre} {description}")
                 if not type_contrat and "contract" in (valeur(r.get("job_type")) or ""):
                     type_contrat = "CDD"
-                cat = categorie(titre)
+                cat = categorie(titre, description)
                 raison = (
                     "sans titre" if not titre
                     else "hors métier" if not cat
                     else "hors Île-de-France" if not IDF.search(lieu)
-                    else "stage, alternance ou freelance" if EXCLUS.search(titre)
+                    else "métier exclu (stage, alternance, sécurité…)" if EXCLUS.search(simplifier(titre))
                     else None
                 )
                 if raison:
