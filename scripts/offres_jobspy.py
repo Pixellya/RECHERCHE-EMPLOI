@@ -30,17 +30,19 @@ RECHERCHES = [
 
 SITES = {
     "indeed": {"country_indeed": "France", "location": "Île-de-France"},
-    "linkedin": {"location": "Île-de-France, France"},
+    # « Île-de-France » seul est compris comme l'île de Sein (Bretagne) : on précise Paris.
+    "linkedin": {"location": "Paris, Île-de-France, France"},
 }
 
 IDF = re.compile(
     r"paris|[iî]le-de-france|hauts-de-seine|seine-saint-denis|val-de-marne|yvelines|essonne|"
-    r"val-d.oise|seine-et-marne|\b(75|77|78|91|92|93|94|95)\d{3}\b",
+    r"val-d.oise|seine-et-marne|\b(75|77|78|91|92|93|94|95)\d{3}\b|"
+    r",\s*A8\b",  # code de l'Île-de-France chez Indeed (« Noisy-le-Grand, A8, FR »)
     re.I,
 )
 EXCLUS = re.compile(r"\b(stage|stagiaire|altern|apprenti|freelance|ind[ée]pendant|int[ée]rim)", re.I)
-EVENEMENTIEL = re.compile(r"[ée]v[ée]nement|event|salon|festival|s[ée]minaire|r[ée]gie", re.I)
-COMMUNICATION = re.compile(r"communication|community|relations presse|attach[ée] de presse|r[ée]seaux sociaux|brand|marketing", re.I)
+EVENEMENTIEL = re.compile(r"[éèe]v[éèe]nement|event|salon|festival|s[ée]minaire|r[ée]gie|congr[eè]s", re.I)
+COMMUNICATION = re.compile(r"communication|community|relations presse|attach[ée]e? de presse|r[ée]seaux sociaux|brand|marketing", re.I)
 
 
 def valeur(x):
@@ -82,15 +84,24 @@ def main():
                 time.sleep(PAUSE)
                 continue
 
+            rejets = {}
             for r in df.to_dict("records"):
                 titre = valeur(r.get("title")) or ""
                 lieu = valeur(r.get("location")) or ""
-                cat = categorie(titre)
-                if not titre or not cat or not IDF.search(lieu) or EXCLUS.search(titre):
-                    continue
+                # Contrat lu dans le titre ou la description ; sinon « Contrat à vérifier » sur le site.
                 type_contrat = contrat(f"{titre} {valeur(r.get('description')) or ''}")
-                # Indeed fournit la description : on exige CDI ou CDD. LinkedIn non : contrat inconnu.
-                if site == "indeed" and not type_contrat:
+                if not type_contrat and "contract" in (valeur(r.get("job_type")) or ""):
+                    type_contrat = "CDD"
+                cat = categorie(titre)
+                raison = (
+                    "sans titre" if not titre
+                    else "hors métier" if not cat
+                    else "hors Île-de-France" if not IDF.search(lieu)
+                    else "stage, alternance ou freelance" if EXCLUS.search(titre)
+                    else None
+                )
+                if raison:
+                    rejets.setdefault(raison, []).append(f"{titre} | {lieu}")
                     continue
                 publiee = valeur(r.get("date_posted"))
                 offres.append({
@@ -106,6 +117,8 @@ def main():
                     "url": r.get("job_url"),
                 })
             print(f"{site} « {recherche} » : {len(df)} résultats bruts.")
+            for raison, exemples in rejets.items():
+                print(f"  écartés ({raison}) : {len(exemples)}, ex. {exemples[:2]}")
             time.sleep(PAUSE)
 
     SORTIE.parent.mkdir(parents=True, exist_ok=True)
