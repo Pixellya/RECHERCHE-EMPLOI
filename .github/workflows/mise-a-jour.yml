@@ -41,7 +41,7 @@ jobs:
       - name: Préparer le site
         run: |
           mkdir _site
-          cp -r index.html style.css app.js data _site/
+          cp -r index.html candidatures.html style.css app.js candidatures.js data vendor _site/
 
       - uses: actions/upload-pages-artifact@v3
         with:
