@@ -82,15 +82,23 @@ def main():
                 time.sleep(PAUSE)
                 continue
 
+            rejets = {}
             for r in df.to_dict("records"):
                 titre = valeur(r.get("title")) or ""
                 lieu = valeur(r.get("location")) or ""
-                cat = categorie(titre)
-                if not titre or not cat or not IDF.search(lieu) or EXCLUS.search(titre):
-                    continue
                 type_contrat = contrat(f"{titre} {valeur(r.get('description')) or ''}")
-                # Indeed fournit la description : on exige CDI ou CDD. LinkedIn non : contrat inconnu.
-                if site == "indeed" and not type_contrat:
+                cat = categorie(titre)
+                raison = (
+                    "sans titre" if not titre
+                    else "hors métier" if not cat
+                    else "hors Île-de-France" if not IDF.search(lieu)
+                    else "stage, alternance ou freelance" if EXCLUS.search(titre)
+                    # Indeed fournit la description : on exige CDI ou CDD. LinkedIn non : contrat inconnu.
+                    else "ni CDI ni CDD" if site == "indeed" and not type_contrat
+                    else None
+                )
+                if raison:
+                    rejets.setdefault(raison, []).append(f"{titre} | {lieu}")
                     continue
                 publiee = valeur(r.get("date_posted"))
                 offres.append({
@@ -106,6 +114,8 @@ def main():
                     "url": r.get("job_url"),
                 })
             print(f"{site} « {recherche} » : {len(df)} résultats bruts.")
+            for raison, exemples in rejets.items():
+                print(f"  écartés ({raison}) : {len(exemples)}, ex. {exemples[:2]}")
             time.sleep(PAUSE)
 
     SORTIE.parent.mkdir(parents=True, exist_ok=True)
