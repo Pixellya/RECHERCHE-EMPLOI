@@ -1,0 +1,66 @@
+{
+  "_lisezmoi": [
+    "Vocabulaire des métiers suivis, partagé par fetch-offres.mjs et offres_jobspy.py.",
+    "Les mots s'écrivent en minuscules et sans accents : le texte des annonces est simplifié de la même façon avant comparaison.",
+    "Un mot reconnaît aussi ses suites (« regisseu » reconnaît régisseur et régisseuse), mais seulement en début de mot (« event » ne reconnaît pas « prévention »).",
+    "recherches : mots-clés envoyés aux sites. titres : un seul suffit dans le titre. missions : si le titre ne suffit pas, il en faut au moins « missions_minimum » différents dans la description. exclus : titres écartés."
+  ],
+  "recherches": [
+    "événementiel",
+    "chef de projet événementiel",
+    "production événementielle",
+    "event manager",
+    "chef de projet MICE",
+    "coordinateur événementiel",
+    "chargé de communication",
+    "community manager",
+    "attaché de presse",
+    "communication événementielle"
+  ],
+  "titres": {
+    "Événementiel": [
+      "evenementiel", "evenement", "event", "events", "eventing",
+      "production evenementielle", "charge de production", "chargee de production",
+      "charge(e) de production", "assistant de production", "assistante de production",
+      "coordinateur de production", "coordinatrice de production", "directeur de production", "directrice de production",
+      "regisseu", "regie generale", "mice", "seminaire", "congres", "festival",
+      "salon professionnel", "salons professionnels", "foire", "convention d'entreprise",
+      "wedding planner", "organisateur de mariage", "organisatrice de mariage",
+      "experientiel", "experiential", "activation", "street marketing", "roadshow",
+      "hospitality", "incentive", "tour manager", "booker", "programmateu",
+      "charge de projet culturel", "chargee de projet culturel", "administrateur de production", "administratrice de production",
+      "charge de diffusion", "chargee de diffusion", "production manager", "project manager event"
+    ],
+    "Communication": [
+      "communication", "communicant", "community manager", "social media", "reseaux sociaux",
+      "relations presse", "attache de presse", "attachee de presse", "relations publiques", "rp ",
+      "brand content", "content manager", "contenu", "influence", "partenariat",
+      "marketing digital", "marketing communication", "marketing evenementiel", "brand manager",
+      "concepteur redacteur", "conceptrice redactrice", "copywriter", "redacteur web", "redactrice web",
+      "charge de mecenat", "chargee de mecenat", "relations medias"
+    ]
+  },
+  "missions": {
+    "Événementiel": [
+      "organisation d'evenements", "organisation des evenements", "organiser des evenements",
+      "evenements", "evenementiel", "salons", "seminaires", "conventions", "congres", "soirees",
+      "lancements de produits", "lancement de produit", "prestataires", "traiteur", "scenographie",
+      "logistique", "retroplanning", "retro planning", "brief client", "appels d'offres",
+      "montage", "demontage", "accueil des participants", "inscriptions des participants",
+      "lieux de reception", "reperages", "budget de l'evenement", "jour j", "regie", "festivals"
+    ],
+    "Communication": [
+      "plan de communication", "strategie de communication", "reseaux sociaux", "communiques de presse",
+      "relations presse", "dossiers de presse", "newsletter", "contenus", "charte graphique",
+      "campagnes", "site internet", "community management", "communication interne",
+      "communication externe", "supports de communication", "journalistes", "influenceurs"
+    ]
+  },
+  "missions_minimum": 3,
+  "exclus": [
+    "stage", "stagiaire", "altern", "apprenti", "freelance", "independant", "interim",
+    "securite", "surete", "serveur", "serveuse", "barman", "barmaid", "plongeu", "cuisinier",
+    "chauffeur", "manutention", "nettoyage", "agent d'entretien", "livreu", "preparateur de commandes",
+    "medecin", "infirmier", "infirmiere"
+  ]
+}

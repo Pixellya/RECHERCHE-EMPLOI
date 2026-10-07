@@ -15,6 +15,8 @@
 
 import { writeFile, mkdir, readFile } from "node:fs/promises";
 
+const METIERS = JSON.parse(await readFile(new URL("./metiers.json", import.meta.url), "utf8"));
+
 const OUTPUT = new URL("../data/offres.json", import.meta.url);
 const JOURS = 14; // ancienneté maximale des offres conservées
 
@@ -22,11 +24,6 @@ const JOURS = 14; // ancienneté maximale des offres conservées
 const ROME = {
   "Événementiel": ["E1107", "L1302", "L1509"],
   "Communication": ["E1103", "E1101", "E1401", "E1402"],
-};
-
-const MOTS_CLES = {
-  "Événementiel": ["événementiel", "évènementiel", "evenementiel", "événement", "évènement", "evenement", "salon", "séminaire", "festival", "régie", "event", "congrès"],
-  "Communication": ["communication", "community manager", "relations presse", "attaché de presse", "attachée de presse", "chargé de com", "marketing digital", "réseaux sociaux", "brand content"],
 };
 
 // Départements d'Île-de-France.
@@ -45,16 +42,44 @@ function secteurPublic(entreprise, secteur) {
       .test(`${entreprise ?? ""} ${secteur ?? ""}`);
 }
 
-function categorie(titre, codeRome) {
+// ---------- Reconnaissance des métiers (vocabulaire dans metiers.json) ----------
+
+// Minuscules, sans accents, sans marques de genre (« chargé(e) », « chargé·e » → « charge »).
+function simplifier(texte) {
+  return (texte ?? "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[’`]/g, "'")
+    .replace(/[-‐–]/g, " ")
+    .replace(/([a-z])[(·.](e|ne|se|euse|rice|trice)\)?(?![a-z])/g, "$1")
+    .replace(/\s+/g, " ");
+}
+
+const echapper = (m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// Un terme est reconnu en début de mot : « event » trouve « events » mais pas « prévention ».
+const motif = (termes, drapeaux = "g") => new RegExp(`(?<![a-z0-9])(${termes.map(echapper).join("|")})`, drapeaux);
+const TITRES = Object.fromEntries(Object.entries(METIERS.titres).map(([cat, t]) => [cat, motif(t)]));
+const MISSIONS = Object.fromEntries(Object.entries(METIERS.missions).map(([cat, t]) => [cat, motif(t)]));
+const EXCLUS = motif(METIERS.exclus, "");
+
+// Catégorie d'une offre : d'abord le code métier France Travail, puis le titre, puis les
+// missions décrites dans l'annonce quand le titre est vague (« Project Manager »).
+function categorie(titre, codeRome, description = "") {
   for (const [cat, codes] of Object.entries(ROME)) {
     if (codes.includes(codeRome)) return cat;
   }
-  const t = titre.toLowerCase();
-  for (const [cat, mots] of Object.entries(MOTS_CLES)) {
-    if (mots.some((m) => t.includes(m))) return cat;
+  const t = simplifier(titre);
+  for (const [cat, re] of Object.entries(TITRES)) {
+    if (t.match(re)) return cat;
+  }
+  const d = simplifier(description);
+  for (const [cat, re] of Object.entries(MISSIONS)) {
+    if (new Set(d.match(re) ?? []).size >= METIERS.missions_minimum) return cat;
   }
   return null;
 }
+
+const exclue = (titre) => EXCLUS.test(simplifier(titre));
 
 // ---------- France Travail ----------
 
@@ -104,6 +129,7 @@ async function franceTravail() {
       for (const o of resultats) {
         if (!CONTRATS.includes(o.typeContrat)) continue;
         if (!enIleDeFrance(o.lieuTravail?.codePostal, o.lieuTravail?.libelle)) continue;
+        if (exclue(o.intitule)) continue;
         offres.push({
           id: `ft-${o.id}`,
           titre: o.intitule,
@@ -112,7 +138,7 @@ async function franceTravail() {
           contrat: o.typeContrat,
           public: secteurPublic(o.entreprise?.nom, `${o.codeNAF ?? ""} ${o.secteurActiviteLibelle ?? ""}`.trim()),
           date: o.dateCreation,
-          categorie: categorie(o.intitule, o.romeCode),
+          categorie: categorie(o.intitule, o.romeCode, o.description),
           source: o.origineOffre?.partenaires?.[0]?.nom ?? "France Travail",
           url:
             o.origineOffre?.partenaires?.[0]?.url ??
@@ -138,7 +164,7 @@ async function adzuna() {
   }
 
   const offres = [];
-  for (const recherche of ["événementiel", "chef de projet événementiel", "communication", "chargé de communication"]) {
+  for (const recherche of METIERS.recherches) {
     const params = new URLSearchParams({
       app_id: id,
       app_key: key,
@@ -156,7 +182,7 @@ async function adzuna() {
       const contrat = o.contract_type === "permanent" ? "CDI" : o.contract_type === "contract" ? "CDD" : null;
       if (!contrat) continue;
       const zones = (o.location?.area ?? []).map((z) => z.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
-      if (!zones.includes("Ile-de-France")) continue;
+      if (!zones.includes("Ile-de-France") || exclue(titre)) continue;
       offres.push({
         id: `az-${o.id}`,
         titre,
@@ -165,7 +191,7 @@ async function adzuna() {
         contrat,
         public: secteurPublic(o.company?.display_name),
         date: o.created,
-        categorie: categorie(titre),
+        categorie: categorie(titre, null, o.description),
         source: "Adzuna",
         url: o.redirect_url,
       });
@@ -177,8 +203,7 @@ async function adzuna() {
 
 // ---------- Outils communs aux nouvelles sources ----------
 
-const RECHERCHES = ["événementiel", "chef de projet événementiel", "chargé de communication", "chargée de communication"];
-const EXCLUS = /\b(stage|stagiaire|altern|apprenti|freelance|ind[ée]pendant|int[ée]rim)/i;
+const RECHERCHES = METIERS.recherches;
 const IDF_TEXTE = /paris|[iî]le-de-france|hauts-de-seine|seine-saint-denis|val-de-marne|yvelines|essonne|val-d.oise|seine-et-marne|\b(75|77|78|91|92|93|94|95)\d{3}\b/i;
 const depuisJours = (jours) => Date.now() - jours * 86400000;
 
@@ -190,7 +215,7 @@ function contratDansTexte(texte) {
 
 // Garde une offre si elle est récente, pertinente et pas un stage, une alternance ou du freelance.
 function retenir(o) {
-  return o.titre && o.url && o.categorie && !EXCLUS.test(o.titre) &&
+  return o.titre && o.url && o.categorie && !exclue(o.titre) &&
     (!o.contrat || CONTRATS.includes(o.contrat)) &&
     new Date(o.date).getTime() >= depuisJours(JOURS);
 }
@@ -225,7 +250,7 @@ async function apec() {
         contrat: CONTRATS_APEC[o.typeContrat] ?? contratDansTexte(`${o.typeContratLibelle ?? ""} ${titre}`),
         public: secteurPublic(o.nomCommercial),
         date: o.datePublication,
-        categorie: categorie(titre),
+        categorie: categorie(titre, null, o.texteOffre),
         source: "APEC",
         url: `https://www.apec.fr/candidat/recherche-emploi.html/emploi/detail-offre/${o.numeroOffre}`,
       });
@@ -290,7 +315,7 @@ async function welcomeToTheJungle() {
         contrat,
         public: false,
         date: h.published_at,
-        categorie: categorie(h.name ?? ""),
+        categorie: categorie(h.name ?? "", null, `${h.summary ?? ""} ${h.profile ?? ""}`),
         source: "Welcome to the Jungle",
         url: `https://www.welcometothejungle.com/fr/companies/${h.organization?.slug}/jobs/${h.slug}`,
       });
@@ -328,7 +353,7 @@ async function jooble() {
         contrat: contratDansTexte(`${o.type ?? ""} ${titre} ${o.snippet ?? ""}`),
         public: secteurPublic(o.company),
         date: o.updated,
-        categorie: categorie(titre),
+        categorie: categorie(titre, null, o.snippet),
         source: o.source || "Jooble",
         url: o.link,
       });

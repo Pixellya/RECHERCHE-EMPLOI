@@ -38,7 +38,7 @@ jobs:
       # la mise à jour continue avec les autres sources.
       - name: Récupérer Indeed et LinkedIn (JobSpy)
         continue-on-error: true
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: |
           pip install --quiet python-jobspy==1.1.82
           python scripts/offres_jobspy.py
