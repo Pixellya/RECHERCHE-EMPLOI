@@ -1,0 +1,18 @@
+# Temporaire : vérifie la récupération Indeed et LinkedIn sur une branche de travail.
+name: Diagnostic JobSpy
+on:
+  push:
+    branches: [claude/sites-emploi]
+jobs:
+  jobspy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: |
+          pip install --quiet python-jobspy==1.1.82
+          python scripts/offres_jobspy.py
+          head -c 1500 data/offres_jobspy.json
