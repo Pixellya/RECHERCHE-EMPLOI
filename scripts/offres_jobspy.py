@@ -30,12 +30,14 @@ RECHERCHES = [
 
 SITES = {
     "indeed": {"country_indeed": "France", "location": "Île-de-France"},
-    "linkedin": {"location": "Île-de-France, France"},
+    # « Île-de-France » seul est compris comme l'île de Sein (Bretagne) : on précise Paris.
+    "linkedin": {"location": "Paris, Île-de-France, France"},
 }
 
 IDF = re.compile(
     r"paris|[iî]le-de-france|hauts-de-seine|seine-saint-denis|val-de-marne|yvelines|essonne|"
-    r"val-d.oise|seine-et-marne|\b(75|77|78|91|92|93|94|95)\d{3}\b",
+    r"val-d.oise|seine-et-marne|\b(75|77|78|91|92|93|94|95)\d{3}\b|"
+    r",\s*A8\b",  # code de l'Île-de-France chez Indeed (« Noisy-le-Grand, A8, FR »)
     re.I,
 )
 EXCLUS = re.compile(r"\b(stage|stagiaire|altern|apprenti|freelance|ind[ée]pendant|int[ée]rim)", re.I)
@@ -86,15 +88,16 @@ def main():
             for r in df.to_dict("records"):
                 titre = valeur(r.get("title")) or ""
                 lieu = valeur(r.get("location")) or ""
+                # Contrat lu dans le titre ou la description ; sinon « Contrat à vérifier » sur le site.
                 type_contrat = contrat(f"{titre} {valeur(r.get('description')) or ''}")
+                if not type_contrat and "contract" in (valeur(r.get("job_type")) or ""):
+                    type_contrat = "CDD"
                 cat = categorie(titre)
                 raison = (
                     "sans titre" if not titre
                     else "hors métier" if not cat
                     else "hors Île-de-France" if not IDF.search(lieu)
                     else "stage, alternance ou freelance" if EXCLUS.search(titre)
-                    # Indeed fournit la description : on exige CDI ou CDD. LinkedIn non : contrat inconnu.
-                    else "ni CDI ni CDD" if site == "indeed" and not type_contrat
                     else None
                 )
                 if raison:
