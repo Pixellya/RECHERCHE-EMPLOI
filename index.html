@@ -2,57 +2,96 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Job Événementiel & Com</title>
   <meta name="description" content="Les dernières offres d'emploi en événementiel et communication en Île-de-France, en CDI et CDD.">
   <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <nav class="nav">
-      <a href="index.html" class="actif" aria-current="page">Offres d'emploi</a>
-      <a href="candidatures.html">Candidatures spontanées</a>
-    </nav>
-    <h1>Job Événementiel <span>&amp;</span> Com</h1>
-    <p class="sous-titre">CDI et CDD en Île-de-France, du plus récent au plus ancien.</p>
+  <header class="conteneur entete-site">
+    <div class="barre-nav">
+      <nav class="nav" aria-label="Sections du site">
+        <a href="index.html" aria-current="page">Offres<span class="suite"> d'emploi</span></a>
+        <a href="candidatures.html">Candidatures spontanées</a>
+      </nav>
+    </div>
+    <h1>Job Événementiel &amp; Com</h1>
+    <p class="sous-titre">CDI et CDD en Île-de-France, du plus récent au plus ancien. <span id="mise-a-jour"></span></p>
   </header>
 
-  <main>
-    <div id="bandeau-exemple" class="bandeau" hidden>
-      Données d'exemple : les vraies offres s'afficheront une fois les sources connectées (voir le README).
+  <main class="conteneur page-offres">
+    <div class="outils">
+      <div class="ligne-recherche">
+        <input type="search" id="recherche" placeholder="Poste, entreprise…" aria-label="Rechercher un poste ou une entreprise">
+        <button type="button" class="bouton" id="ouvrir-filtres" aria-controls="panneau-filtres" aria-expanded="false">
+          Filtres <span id="nb-filtres" class="chiffres"></span>
+        </button>
+      </div>
+      <div class="rangee-puces" role="group" aria-label="Afficher">
+        <button type="button" class="puce" data-vue="" aria-pressed="true">Toutes</button>
+        <button type="button" class="puce" data-vue="nouvelles" aria-pressed="false">Nouvelles <span class="nb-puce" id="nb-nouvelles"></span></button>
+        <button type="button" class="puce" data-vue="favoris" aria-pressed="false">★ Favoris <span class="nb-puce" id="nb-favoris"></span></button>
+      </div>
     </div>
 
-    <form id="filtres" class="filtres" onsubmit="return false">
-      <input type="search" id="recherche" placeholder="Rechercher un poste, une entreprise…" aria-label="Recherche">
-      <input type="text" id="lieu" placeholder="Ville ou département (ex. 92)" aria-label="Lieu">
-      <div class="puces" role="group" aria-label="Catégorie" data-filtre="categorie">
-        <button type="button" class="puce actif" data-valeur="">Tout</button>
-        <button type="button" class="puce" data-valeur="Événementiel">Événementiel</button>
-        <button type="button" class="puce" data-valeur="Communication">Communication</button>
+    <div class="voile" id="voile" hidden></div>
+    <aside class="panneau-filtres" id="panneau-filtres" aria-label="Filtres">
+      <div class="panneau-entete">
+        <h2>Filtres</h2>
+        <button type="button" class="bouton discret" id="fermer-filtres">Fermer</button>
       </div>
-      <div class="puces" role="group" aria-label="Contrat" data-filtre="contrat">
-        <button type="button" class="puce actif" data-valeur="">CDI et CDD</button>
-        <button type="button" class="puce" data-valeur="CDI">CDI</button>
-        <button type="button" class="puce" data-valeur="CDD">CDD</button>
+      <fieldset>
+        <legend class="etiquette-section">Métier</legend>
+        <div class="puces" data-filtre="categorie">
+          <button type="button" class="puce" data-valeur="" aria-pressed="true">Tous</button>
+          <button type="button" class="puce" data-valeur="Événementiel" aria-pressed="false">Événementiel</button>
+          <button type="button" class="puce" data-valeur="Communication" aria-pressed="false">Communication</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend class="etiquette-section">Contrat</legend>
+        <div class="puces" data-filtre="contrat">
+          <button type="button" class="puce" data-valeur="" aria-pressed="true">CDI et CDD</button>
+          <button type="button" class="puce" data-valeur="CDI" aria-pressed="false">CDI</button>
+          <button type="button" class="puce" data-valeur="CDD" aria-pressed="false">CDD</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend class="etiquette-section">Lieu</legend>
+        <input type="text" id="lieu" placeholder="Ville ou département (ex. 92)" aria-label="Ville ou département">
+      </fieldset>
+      <fieldset>
+        <legend class="etiquette-section">Employeur</legend>
+        <label class="case"><input type="checkbox" id="public"> Secteur public uniquement (mairies, départements…)</label>
+      </fieldset>
+      <div class="panneau-pied">
+        <button type="button" class="bouton principal" id="voir-resultats">Voir les offres</button>
       </div>
-      <label class="case">
-        <input type="checkbox" id="public"> Secteur public uniquement (mairies, départements…)
-      </label>
-    </form>
+    </aside>
 
-    <p id="compteur" class="compteur"></p>
+    <div class="resume">
+      <div id="bandeau-exemple" class="bandeau" hidden>
+        Offres d'exemple : les vraies offres s'afficheront une fois France Travail connecté (voir le README).
+      </div>
+      <p id="compteur" class="compteur" aria-live="polite"></p>
+      <div id="filtres-actifs" class="filtres-actifs"></div>
+    </div>
+
     <ul id="liste" class="liste"></ul>
 
-    <section class="ailleurs">
-      <h2>Chercher aussi sur…</h2>
-      <p class="infos">Ces sites n'autorisent pas la reprise de leurs annonces : chaque lien ouvre directement leur recherche.</p>
+    <section class="ailleurs" aria-labelledby="titre-ailleurs">
+      <h2 id="titre-ailleurs">Chercher aussi sur…</h2>
+      <p class="infos">Ces sites n'autorisent pas la reprise de leurs annonces : chaque bouton ouvre directement leur recherche.</p>
       <ul id="sites" class="sites"></ul>
     </section>
   </main>
 
-  <footer>
-    <p id="mise-a-jour"></p>
+  <footer class="conteneur pied">
+    <p>Offres : France Travail et Adzuna. Mise à jour automatique 4 fois par jour.</p>
   </footer>
 
   <script src="app.js"></script>

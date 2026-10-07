@@ -7,6 +7,11 @@ où elle a été publiée.
 
 Le site se met à jour tout seul **4 fois par jour** (vers 7h, 11h, 15h et 19h).
 
+Le site retient dans votre navigateur :
+- les offres **nouvelles** depuis votre dernière visite (étiquette jaune « Nouveau ») ;
+- les offres **déjà ouvertes**, affichées en plus discret ;
+- vos **favoris** (☆ en haut à droite de chaque offre, puis le filtre « Favoris »).
+
 Sur téléphone, on peut l'ajouter à l'écran d'accueil (menu du navigateur →
 « Ajouter à l'écran d'accueil ») pour l'ouvrir comme une application.
 
@@ -40,10 +45,14 @@ feu vert, et c'est toujours vous qui cliquez sur « Envoyer » dans Gmail.
    site, une actualité récente qui servira d'accroche, la bonne personne à contacter
    et son adresse e-mail. Il rédige ensuite un mail court et adapte votre CV à partir
    du CV maître, **sans rien inventer**.
-4. **À valider** : une fiche par candidature avec l'entreprise, le contact, la
-   **fiabilité de l'adresse** (vérifiée, probable, générique, supposée), l'angle et
-   ses sources, le mail et le CV. Tout est modifiable. Trois choix : **Valider**,
-   **Refaire la recherche** ou **Rejeter**.
+   Les préparations tournent en file d'attente : vous pouvez continuer à trier
+   pendant ce temps, une notification prévient quand une candidature est prête.
+4. **À valider** : les candidatures défilent une par une, avec l'entreprise, le
+   contact, la **fiabilité de l'adresse** (vérifiée, probable, générique, supposée),
+   l'accroche et ses sources, l'aperçu du mail tel qu'il arrivera et le CV. Tout est
+   modifiable. Une adresse « supposée » doit être cochée comme vérifiée avant de
+   créer le brouillon. **Régénérer** accepte une consigne (« plus court », « autre
+   accroche »…) et permet de revenir à la version précédente.
 5. **Brouillon Gmail** : une fois validé, le mail arrive dans vos brouillons Gmail
    avec le CV en pièce jointe. Le CV joint est soit le CV adapté, soit votre propre
    CV PDF.
