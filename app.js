@@ -123,7 +123,7 @@ function carte(o) {
 
   const tags = element("div", "tags");
   tags.append(element("span", "categorie", o.categorie));
-  if (o.contrat) tags.append(element("span", "tag", o.contrat));
+  tags.append(element("span", "tag", o.contrat ?? "Contrat à vérifier"));
   if (o.public) tags.append(element("span", "tag public", "Secteur public"));
 
   const bas = element("div", "bas");
@@ -282,7 +282,8 @@ function afficherSites() {
       const liens = element("span", "liens");
       if (site.url.includes("{q}")) {
         for (const mot of ["Événementiel", "Communication"]) {
-          liens.append(lienSite(`${mot} ↗`, site.url.replace("{q}", encodeURIComponent(mot.toLowerCase())), `${site.nom} : offres ${mot.toLowerCase()}`));
+          const q = site.slug ? normaliser(mot).replace(/[^a-z0-9]+/g, "-") : encodeURIComponent(mot.toLowerCase());
+          liens.append(lienSite(`${mot} ↗`, site.url.replace("{q}", q), `${site.nom} : offres ${mot.toLowerCase()}`));
         }
       } else {
         liens.append(lienSite("Offres ↗", site.url, `${site.nom} : offres d'emploi`));

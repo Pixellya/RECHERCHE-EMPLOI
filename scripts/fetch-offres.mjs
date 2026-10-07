@@ -1,15 +1,19 @@
 // Récupère les dernières offres d'emploi en événementiel et communication
 // depuis des sources officielles (API), puis les enregistre dans data/offres.json.
 //
-// Sources (chacune est ignorée si ses clés ne sont pas configurées) :
+// Sources (chacune est isolée : si elle échoue ou n'a pas de clé, les autres continuent) :
 //   - France Travail : FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET
 //   - Adzuna         : ADZUNA_APP_ID, ADZUNA_APP_KEY
+//   - Jooble         : JOOBLE_API_KEY
+//   - APEC et Welcome to the Jungle : recherches publiques de leurs sites, sans clé
+//   - Indeed et LinkedIn : fichier data/offres_jobspy.json écrit avant par
+//     scripts/offres_jobspy.py (JobSpy)
 //
 // Filtres appliqués : Île-de-France uniquement, CDI et CDD uniquement.
 //
 // Lancement : node scripts/fetch-offres.mjs
 
-import { writeFile, mkdir } from "node:fs/promises";
+import { writeFile, mkdir, readFile } from "node:fs/promises";
 
 const OUTPUT = new URL("../data/offres.json", import.meta.url);
 const JOURS = 14; // ancienneté maximale des offres conservées
@@ -171,18 +175,203 @@ async function adzuna() {
   return offres;
 }
 
+// ---------- Outils communs aux nouvelles sources ----------
+
+const RECHERCHES = ["événementiel", "chef de projet événementiel", "chargé de communication", "chargée de communication"];
+const EXCLUS = /\b(stage|stagiaire|altern|apprenti|freelance|ind[ée]pendant|int[ée]rim)/i;
+const IDF_TEXTE = /paris|[iî]le-de-france|hauts-de-seine|seine-saint-denis|val-de-marne|yvelines|essonne|val-d.oise|seine-et-marne|\b(75|77|78|91|92|93|94|95)\d{3}\b/i;
+const depuisJours = (jours) => Date.now() - jours * 86400000;
+
+function contratDansTexte(texte) {
+  if (/\bCDD\b/i.test(texte ?? "")) return "CDD";
+  if (/\bCDI\b/i.test(texte ?? "")) return "CDI";
+  return null;
+}
+
+// Garde une offre si elle est récente, pertinente et pas un stage, une alternance ou du freelance.
+function retenir(o) {
+  return o.titre && o.url && o.categorie && !EXCLUS.test(o.titre) &&
+    (!o.contrat || CONTRATS.includes(o.contrat)) &&
+    new Date(o.date).getTime() >= depuisJours(JOURS);
+}
+
+// ---------- APEC (recherche publique du site) ----------
+
+async function apec() {
+  const CONTRATS_APEC = { 101888: "CDI", 101887: "CDD" };
+  const offres = [];
+  for (const motsCles of RECHERCHES) {
+    const res = await fetch("https://www.apec.fr/cms/webservices/rechercheOffre", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        typeClient: "CADRE",
+        activeFiltre: true,
+        sorts: [{ type: "DATE", direction: "DESCENDING" }],
+        pagination: { range: 50, startIndex: 0 },
+        lieux: DEPARTEMENTS_IDF,
+        motsCles,
+      }),
+    });
+    if (!res.ok) throw new Error(`APEC : HTTP ${res.status}`);
+    const { resultats = [] } = await res.json();
+    for (const o of resultats) {
+      const titre = o.intitule ?? "";
+      offres.push({
+        id: `apec-${o.numeroOffre}`,
+        titre,
+        entreprise: o.nomCommercial ?? null,
+        lieu: o.lieuTexte ?? null,
+        contrat: CONTRATS_APEC[o.typeContrat] ?? contratDansTexte(`${o.typeContratLibelle ?? ""} ${titre}`),
+        public: secteurPublic(o.nomCommercial),
+        date: o.datePublication,
+        categorie: categorie(titre),
+        source: "APEC",
+        url: `https://www.apec.fr/candidat/recherche-emploi.html/emploi/detail-offre/${o.numeroOffre}`,
+      });
+    }
+  }
+  const retenues = offres.filter(retenir);
+  console.log(`APEC : ${retenues.length} offres.`);
+  return retenues;
+}
+
+// ---------- Welcome to the Jungle (index de recherche public Algolia) ----------
+
+async function welcomeToTheJungle() {
+  const APP = process.env.WTTJ_ALGOLIA_APP ?? "CSEKHVMS53";
+  const CLE = process.env.WTTJ_ALGOLIA_KEY ?? "4bd8f6215d0cc52b26430765769e65a0";
+  const INDEX = ["wttj_jobs_production_fr", "wk_cms_jobs_production"];
+  const CONTRATS_WTTJ = { full_time: "CDI", temporary: "CDD" };
+
+  async function chercher(index, query) {
+    const res = await fetch(`https://${APP.toLowerCase()}-dsn.algolia.net/1/indexes/${index}/query`, {
+      method: "POST",
+      headers: {
+        "X-Algolia-Application-Id": APP,
+        "X-Algolia-API-Key": CLE,
+        "Content-Type": "application/json",
+        Referer: "https://www.welcometothejungle.com/",
+      },
+      body: JSON.stringify({
+        query,
+        hitsPerPage: 50,
+        facetFilters: [["offices.country_code:FR"]],
+        numericFilters: [`published_at_timestamp>=${Math.floor(depuisJours(JOURS) / 1000)}`],
+      }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return (await res.json()).hits ?? [];
+  }
+
+  const offres = [];
+  for (const query of RECHERCHES) {
+    let hits = null;
+    for (const index of INDEX) {
+      try {
+        hits = await chercher(index, query);
+        break;
+      } catch (e) {
+        console.log(`Welcome to the Jungle (${index}) : ${e.message}`);
+      }
+    }
+    if (!hits) throw new Error("Welcome to the Jungle : index de recherche indisponible.");
+    for (const h of hits) {
+      const bureaux = h.offices ?? [];
+      const bureau = bureaux.find((b) => IDF_TEXTE.test(`${b.city ?? ""} ${b.state ?? ""} ${b.zip_code ?? ""}`));
+      if (!bureau) continue;
+      const contrat = CONTRATS_WTTJ[h.contract_type];
+      if (!contrat) continue;
+      offres.push({
+        id: `wttj-${h.reference ?? h.slug}`,
+        titre: h.name,
+        entreprise: h.organization?.name ?? null,
+        lieu: bureau.city ?? null,
+        contrat,
+        public: false,
+        date: h.published_at,
+        categorie: categorie(h.name ?? ""),
+        source: "Welcome to the Jungle",
+        url: `https://www.welcometothejungle.com/fr/companies/${h.organization?.slug}/jobs/${h.slug}`,
+      });
+    }
+  }
+  const retenues = offres.filter(retenir);
+  console.log(`Welcome to the Jungle : ${retenues.length} offres.`);
+  return retenues;
+}
+
+// ---------- Jooble (API officielle, clé gratuite) ----------
+
+async function jooble() {
+  const cle = process.env.JOOBLE_API_KEY;
+  if (!cle) {
+    console.log("Jooble : clé absente, source ignorée.");
+    return [];
+  }
+  const offres = [];
+  for (const keywords of RECHERCHES) {
+    const res = await fetch(`https://fr.jooble.org/api/${cle}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keywords, location: "Île-de-France", page: 1 }),
+    });
+    if (!res.ok) throw new Error(`Jooble : HTTP ${res.status}`);
+    const { jobs = [] } = await res.json();
+    for (const o of jobs) {
+      const titre = (o.title ?? "").replace(/<[^>]+>/g, "");
+      offres.push({
+        id: `jooble-${o.id}`,
+        titre,
+        entreprise: o.company || null,
+        lieu: o.location ?? null,
+        contrat: contratDansTexte(`${o.type ?? ""} ${titre} ${o.snippet ?? ""}`),
+        public: secteurPublic(o.company),
+        date: o.updated,
+        categorie: categorie(titre),
+        source: o.source || "Jooble",
+        url: o.link,
+      });
+    }
+  }
+  const retenues = offres.filter((o) => retenir(o) && IDF_TEXTE.test(o.lieu ?? ""));
+  console.log(`Jooble : ${retenues.length} offres.`);
+  return retenues;
+}
+
+// ---------- Indeed et LinkedIn (fichier produit par JobSpy) ----------
+
+async function jobspy() {
+  try {
+    const offres = JSON.parse(await readFile(new URL("../data/offres_jobspy.json", import.meta.url), "utf8"));
+    const retenues = offres.filter(retenir);
+    console.log(`Indeed et LinkedIn (JobSpy) : ${retenues.length} offres.`);
+    return retenues;
+  } catch {
+    console.log("Indeed et LinkedIn : pas de fichier JobSpy, source ignorée.");
+    return [];
+  }
+}
+
 // ---------- Assemblage ----------
 
+// Une même annonce publiée sur plusieurs sites n'est gardée qu'une fois : les sources
+// sont listées par ordre de préférence, la première rencontrée l'emporte.
 function dedoublonner(offres) {
+  const urls = new Set();
   const vues = new Map();
   for (const o of offres) {
-    const cle = `${o.titre}|${o.entreprise ?? ""}`.toLowerCase().replace(/\s+/g, " ").trim();
+    if (urls.has(o.url)) continue;
+    urls.add(o.url);
+    const cle = `${o.titre}|${o.entreprise ?? ""}`
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase().replace(/\b[hf] ?\/ ?[hf]\b/g, " ").replace(/[^a-z0-9|]+/g, " ").replace(/\s+/g, " ").replace(/ ?\| ?/, "|").trim();
     if (!vues.has(cle)) vues.set(cle, o);
   }
   return [...vues.values()];
 }
 
-const resultats = await Promise.allSettled([franceTravail(), adzuna()]);
+const resultats = await Promise.allSettled([franceTravail(), apec(), adzuna(), jooble(), welcomeToTheJungle(), jobspy()]);
 for (const r of resultats) {
   if (r.status === "rejected") console.error(r.reason.message);
 }

@@ -30,6 +30,19 @@ jobs:
         with:
           node-version: 22
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Indeed et LinkedIn via JobSpy. Étape isolée : si ces sites bloquent,
+      # la mise à jour continue avec les autres sources.
+      - name: Récupérer Indeed et LinkedIn (JobSpy)
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          pip install --quiet python-jobspy==1.1.82
+          python scripts/offres_jobspy.py
+
       - name: Récupérer les offres
         run: node scripts/fetch-offres.mjs
         env:
@@ -37,6 +50,7 @@ jobs:
           FRANCE_TRAVAIL_CLIENT_SECRET: ${{ secrets.FRANCE_TRAVAIL_CLIENT_SECRET }}
           ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
           ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          JOOBLE_API_KEY: ${{ secrets.JOOBLE_API_KEY }}
 
       - name: Préparer le site
         run: |
