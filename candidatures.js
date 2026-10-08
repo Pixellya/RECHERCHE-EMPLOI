@@ -560,6 +560,10 @@ async function traiterFile() {
     } catch (err) {
       e.erreur = messageErreur(err);
       sauver();
+      if (erreurBloquante(err)) {
+        file.length = 0;
+        alerte(e.erreur);
+      }
     }
     preparationEnCours = null;
   }
@@ -635,7 +639,15 @@ async function appelClaude(params) {
   throw new Error("La recherche a pris trop de temps, réessayez.");
 }
 
+// Erreurs qui feraient échouer toutes les préparations suivantes : on arrête la file.
+function erreurBloquante(e) {
+  return e instanceof Anthropic.AuthenticationError || /credit balance/i.test(e?.message ?? "");
+}
+
 function messageErreur(e) {
+  if (/credit balance/i.test(e?.message ?? "")) {
+    return "Plus de crédit sur votre compte Claude : ajoutez-en sur console.anthropic.com (Settings → Billing), puis cliquez sur Réessayer.";
+  }
   if (e instanceof Anthropic.AuthenticationError) return "Clé API Claude refusée : vérifiez-la dans Réglages.";
   if (e instanceof Anthropic.RateLimitError) return "Trop de demandes à Claude d'un coup : patientez une minute.";
   if (e instanceof Anthropic.APIConnectionError) return "Impossible de joindre Claude : vérifiez votre connexion.";
