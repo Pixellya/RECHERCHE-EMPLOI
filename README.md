@@ -53,6 +53,32 @@ automatiquement et portent l'étiquette **« Secteur public »**.
 Tant qu'aucune source n'est connectée, le site affiche des **offres d'exemple**
 (fictives) signalées par un bandeau.
 
+## Bilan Gmail
+
+La page **Bilan Gmail** (lien en haut du site) compte les candidatures envoyées dans
+le mois et montre qui a répondu, en lisant les mails reçus dans Gmail :
+
+- **accusés de réception** (« Nous avons bien reçu votre candidature », « Votre
+  candidature a été envoyée à… » de LinkedIn, « Candidatures via Indeed »…) et mails de
+  candidature envoyés soi-même : une candidature confirmée à la fois par la plateforme
+  et par l'employeur n'est comptée qu'une fois ;
+- **réponses** rattachées à chaque candidature : vue par le recruteur, refus, prise de
+  contact ou entretien ;
+- répartition **par canal** (LinkedIn, Indeed, HelloWork, site de l'employeur…) ;
+- une rubrique **À vérifier** pour les candidatures peut-être pas finalisées
+  (redirection vers le site de l'employeur, « Finalisez votre candidature »).
+
+Chaque ligne peut être décochée si ce n'est pas une candidature. Le tri est fait dans
+le navigateur par les règles de `bilan-regles.js`, sans Claude ni autre service, donc
+gratuitement. Une candidature déposée sur un site qui n'envoie aucun mail ne peut pas
+être comptée.
+
+La page utilise le même **identifiant client Google** que les brouillons (voir
+ci-dessous) et demande l'accès **en lecture seule** à Gmail. Elle ne modifie et n'envoie
+rien. Si Google refuse l'accès, ajouter le champ d'application
+`https://www.googleapis.com/auth/gmail.readonly` dans **Écran de consentement OAuth →
+Accès aux données**.
+
 ## Candidatures spontanées
 
 La page **Candidatures spontanées** (lien en haut du site) prépare des candidatures

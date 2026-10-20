@@ -677,6 +677,25 @@ details.repli > .contenu { display: grid; gap: 12px; padding-bottom: 8px; }
 
 .liste-simple { padding-left: 18px; margin: 0; display: grid; gap: 4px; }
 
+/* Bilan Gmail */
+.chiffre-cle { gap: 10px; }
+.grand-chiffre { font-family: var(--police-titre); font-size: 3rem; line-height: 1; font-weight: 800; color: var(--encre); }
+.ligne-bilan {
+  grid-template-columns: 4.5em minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px 12px;
+}
+.ligne-bilan h3 { font-size: var(--t-m); overflow-wrap: anywhere; }
+.ligne-bilan .quand { font-size: var(--t-s); color: var(--discret); padding-top: 2px; }
+.ligne-bilan .actions { grid-column: 2 / -1; gap: 4px 16px; }
+.ligne-bilan .case { min-height: 32px; }
+.ligne-bilan.ecartee { opacity: 0.55; }
+@media (max-width: 480px) {
+  .ligne-bilan { grid-template-columns: minmax(0, 1fr) auto; }
+  .ligne-bilan .quand { grid-column: 1 / -1; }
+  .ligne-bilan .actions { grid-column: 1 / -1; }
+}
+
 /* Les grilles à une colonne ne s'élargissent jamais au-delà de l'écran. */
 .onglet, .bloc, .formulaire, .fiche, .fiche section, details.repli > .contenu, .entete-site, .resume {
   grid-template-columns: minmax(0, 1fr);

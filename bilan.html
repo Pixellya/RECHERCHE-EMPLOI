@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bilan Gmail · Job Événementiel & Com</title>
+  <meta name="description" content="Compter les candidatures envoyées dans le mois et suivre les réponses, à partir des mails reçus dans Gmail.">
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="conteneur etroit entete-site">
+    <div class="barre-nav">
+      <nav class="nav" aria-label="Sections du site">
+        <a href="index.html">Offres<span class="suite">&nbsp;d'emploi</span></a>
+        <a href="candidatures.html">Candidatures<span class="suite">&nbsp;spontanées</span></a>
+        <a href="bilan.html" aria-current="page">Bilan Gmail</a>
+      </nav>
+    </div>
+    <h1>Bilan Gmail</h1>
+    <p class="sous-titre">Combien de candidatures sont parties ce mois-ci, et qui a répondu. La page lit les accusés de réception dans Gmail, sans rien envoyer ni modifier.</p>
+  </header>
+
+  <main class="conteneur etroit onglet">
+    <div id="alerte" class="bandeau" role="alert" hidden></div>
+
+    <section class="bloc" aria-label="Analyse">
+      <div class="actions">
+        <select id="mois" aria-label="Mois"></select>
+        <button type="button" class="bouton principal" id="bouton-analyser">Analyser ma boîte Gmail</button>
+      </div>
+      <p class="infos petit" id="etat" aria-live="polite"></p>
+    </section>
+
+    <section id="vide" class="vide" hidden>
+      <h2 id="titre-vide" class="etiquette-section"></h2>
+      <p>Cliquez sur « Analyser ma boîte Gmail ». Google demandera l'accès en lecture à vos mails : il sert uniquement à repérer les accusés de réception, les refus et les prises de contact.</p>
+    </section>
+
+    <div id="resultats" class="onglet" hidden>
+      <section class="bloc chiffre-cle" aria-labelledby="libelle-chiffre">
+        <p><strong id="chiffre" class="grand-chiffre chiffres"></strong> <span id="libelle-chiffre"></span></p>
+        <div id="pastilles" class="resume-suivi"></div>
+        <p id="sources" class="infos petit"></p>
+        <p id="avertissement" class="infos petit" hidden>Plus de 400 mails correspondent : seuls les 400 plus récents ont été lus, le total peut être sous-estimé.</p>
+      </section>
+
+      <section aria-labelledby="titre-liste">
+        <h2 id="titre-liste" class="etiquette-section">Candidatures du mois</h2>
+        <p class="infos petit">Une candidature confirmée à la fois par la plateforme et par l'employeur n'est comptée qu'une fois. Décochez celles qui ne sont pas des candidatures.</p>
+        <ul id="liste-candidatures" class="liste"></ul>
+      </section>
+
+      <details class="repli">
+        <summary>Réponses reçues ce mois <span class="chiffres" id="nb-reponses"></span></summary>
+        <div class="contenu"><ul id="liste-reponses" class="liste-simple"></ul></div>
+      </details>
+
+      <details class="repli" id="bloc-verifier" hidden>
+        <summary>À vérifier <span class="chiffres" id="nb-verifier"></span></summary>
+        <div class="contenu">
+          <p class="infos petit">Candidatures commencées sur une plateforme puis redirigées vers le site de l'employeur, ou pas finalisées. Cochez celles que vous avez bien envoyées.</p>
+          <ul id="liste-verifier" class="liste"></ul>
+        </div>
+      </details>
+    </div>
+
+    <p class="infos petit">Les résultats restent dans ce navigateur. Les candidatures envoyées sans accusé de réception (dépôt sur un site qui n'envoie pas de mail) ne peuvent pas être comptées.</p>
+  </main>
+
+  <script src="https://accounts.google.com/gsi/client" async></script>
+  <script type="module" src="bilan.js"></script>
+</body>
+</html>
